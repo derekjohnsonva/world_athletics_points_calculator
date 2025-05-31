@@ -1,6 +1,6 @@
 // src/scoring_logic/calculator.rs
 use crate::models::{Event, Gender, TrackAndFieldEvent, WorldAthleticsScoreInput};
-use crate::scoring_logic::constants::Coefficients; // Corrected import path for get_coefficients
+use crate::scoring_logic::coefficients::Coefficients; // Corrected import path for get_coefficients
 
 /// Calculates the points based on a result and the event-specific coefficients.
 ///
@@ -120,6 +120,7 @@ pub fn calculate_world_athletics_score(
     if is_wind_affected_event(&input.event) {
         result_score += calculate_wind_adjustment(input.wind_speed);
     }
+
     let placing_score = 0.0;
     let points = result_score + placing_score;
 
@@ -129,10 +130,8 @@ pub fn calculate_world_athletics_score(
 #[cfg(test)]
 mod tests {
     use super::*; // Import everything from the parent module
-    use crate::models::{
-        CompetitionCategory, Event, Gender, TrackAndFieldEvent, WorldAthleticsScoreInput,
-    };
-    use crate::scoring_logic::constants::Coefficients; // Corrected import for load_coefficients
+    use crate::models::{Event, Gender, TrackAndFieldEvent, WorldAthleticsScoreInput};
+    use crate::scoring_logic::coefficients::Coefficients; // Corrected import for load_coefficients
     use assert_approx_eq::assert_approx_eq;
 
     // --- Mock function for get_coefficients ---
@@ -160,6 +159,33 @@ mod tests {
         }
     }
 
+    /// Tests the `calculate_wind_adjustment` helper function.
+    #[test]
+    fn test_calculate_wind_adjustment() {
+        // Test cases for tailwind (positive wind_value)
+        assert_eq!(calculate_wind_adjustment(Some(0.0)), 0.0); // At 0.0 m/s
+        assert_eq!(calculate_wind_adjustment(Some(1.0)), 0.0); // +1.0 m/s (no deduction <= 2.0)
+        assert_eq!(calculate_wind_adjustment(Some(1.9)), 0.0); // +1.9 m/s (no deduction <= 2.0)
+        assert_eq!(calculate_wind_adjustment(Some(2.0)), 0.0); // +2.0 m/s (no deduction <= 2.0)
+        assert_approx_eq!(calculate_wind_adjustment(Some(2.1)), -12.6); // +2.1 m/s (2.1 * 6 = 12.6, deducted)
+        assert_approx_eq!(calculate_wind_adjustment(Some(2.5)), -15.0); // +2.5 m/s (2.5 * 6 = 15.0, deducted)
+        assert_approx_eq!(calculate_wind_adjustment(Some(3.0)), -18.0); // +3.0 m/s (matches table)
+        assert_approx_eq!(calculate_wind_adjustment(Some(4.0)), -24.0); // +4.0 m/s (matches table)
+
+        // Test cases for headwind (negative wind_value)
+        assert_eq!(calculate_wind_adjustment(Some(-0.0)), 0.0); // Exactly 0.0 m/s
+        assert_approx_eq!(calculate_wind_adjustment(Some(-0.1)), 0.6); // -0.1 m/s (+0.6 pts)
+        assert_approx_eq!(calculate_wind_adjustment(Some(-0.5)), 3.0); // -0.5 m/s (+3.0 pts)
+        assert_approx_eq!(calculate_wind_adjustment(Some(-1.0)), 6.0); // -1.0 m/s (matches table)
+        assert_approx_eq!(calculate_wind_adjustment(Some(-1.5)), 9.0); // -1.5 m/s (+9.0 pts)
+        assert_approx_eq!(calculate_wind_adjustment(Some(-2.0)), 12.0); // -2.0 m/s (matches table)
+        assert_approx_eq!(calculate_wind_adjustment(Some(-3.0)), 18.0); // -3.0 m/s (matches table)
+        assert_approx_eq!(calculate_wind_adjustment(Some(-4.0)), 24.0); // -4.0 m/s (matches table)
+
+        // Test case for No Wind Information (NWI)
+        assert_eq!(calculate_wind_adjustment(None), -30.0);
+    }
+
     /// Tests the end-to-end `calculate_world_athletics_score` function using a mock coefficient fetcher.
     #[test]
     fn test_calculate_world_athletics_score() {
@@ -182,8 +208,8 @@ mod tests {
         let input2 = WorldAthleticsScoreInput {
             gender: Gender::Women,
             event: Event::TrackAndField(TrackAndFieldEvent::LJ),
-            performance: 6.50, // Example: 6.50 meters
-            wind_speed: None,
+            performance: 6.50,     // Example: 6.50 meters
+            wind_speed: Some(0.0), // with no wind we will apply a penalty
             placement_info: None,
         };
         let expected_points2 = 1108.0;
@@ -216,32 +242,5 @@ mod tests {
         let output4 = calculate_world_athletics_score(input4, mock_get_coefficients)
             .expect("Calculation failed for men's 5000m");
         assert_eq!(output4, expected_points4);
-    }
-
-    /// Tests the `calculate_wind_adjustment` helper function.
-    #[test]
-    fn test_calculate_wind_adjustment() {
-        // Test cases for tailwind (positive wind_value)
-        assert_eq!(calculate_wind_adjustment(Some(0.0)), 0.0); // At 0.0 m/s
-        assert_eq!(calculate_wind_adjustment(Some(1.0)), 0.0); // +1.0 m/s (no deduction <= 2.0)
-        assert_eq!(calculate_wind_adjustment(Some(1.9)), 0.0); // +1.9 m/s (no deduction <= 2.0)
-        assert_eq!(calculate_wind_adjustment(Some(2.0)), 0.0); // +2.0 m/s (no deduction <= 2.0)
-        assert_approx_eq!(calculate_wind_adjustment(Some(2.1)), -12.6); // +2.1 m/s (2.1 * 6 = 12.6, deducted)
-        assert_approx_eq!(calculate_wind_adjustment(Some(2.5)), -15.0); // +2.5 m/s (2.5 * 6 = 15.0, deducted)
-        assert_approx_eq!(calculate_wind_adjustment(Some(3.0)), -18.0); // +3.0 m/s (matches table)
-        assert_approx_eq!(calculate_wind_adjustment(Some(4.0)), -24.0); // +4.0 m/s (matches table)
-
-        // Test cases for headwind (negative wind_value)
-        assert_eq!(calculate_wind_adjustment(Some(-0.0)), 0.0); // Exactly 0.0 m/s
-        assert_approx_eq!(calculate_wind_adjustment(Some(-0.1)), 0.6); // -0.1 m/s (+0.6 pts)
-        assert_approx_eq!(calculate_wind_adjustment(Some(-0.5)), 3.0); // -0.5 m/s (+3.0 pts)
-        assert_approx_eq!(calculate_wind_adjustment(Some(-1.0)), 6.0); // -1.0 m/s (matches table)
-        assert_approx_eq!(calculate_wind_adjustment(Some(-1.5)), 9.0); // -1.5 m/s (+9.0 pts)
-        assert_approx_eq!(calculate_wind_adjustment(Some(-2.0)), 12.0); // -2.0 m/s (matches table)
-        assert_approx_eq!(calculate_wind_adjustment(Some(-3.0)), 18.0); // -3.0 m/s (matches table)
-        assert_approx_eq!(calculate_wind_adjustment(Some(-4.0)), 24.0); // -4.0 m/s (matches table)
-
-        // Test case for No Wind Information (NWI)
-        assert_eq!(calculate_wind_adjustment(None), -30.0);
     }
 }

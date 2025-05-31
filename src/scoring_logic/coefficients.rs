@@ -48,6 +48,24 @@ pub struct CoefficientsTable {
     pub women: GenderCoefficients,
 }
 
+impl CoefficientsTable {
+    fn new(json_data: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let coefficients_table: CoefficientsTable = serde_json::from_str(json_data)?;
+        Ok(coefficients_table)
+    }
+    /// Retrieves the coefficients for a specific event and gender.
+    /// Returns `None` if the event or gender is not found.
+    pub fn get_coefficients(&self, gender: Gender, event_name: &str) -> Option<Coefficients> {
+        let gender_map = match gender {
+            Gender::Men => &self.men.events,
+            Gender::Women => &self.women.events,
+        };
+        gender_map
+            .get(event_name)
+            .map(|raw_coefficients| raw_coefficients.clone().into())
+    }
+}
+
 // Global static for holding the loaded coefficients.
 // Using OnceCell ensures it's initialized only once, safely.
 static COEFFICIENTS: OnceCell<CoefficientsTable> = OnceCell::new();
@@ -65,20 +83,6 @@ pub fn load_coefficients() -> Result<(), String> {
     COEFFICIENTS
         .set(table)
         .map_err(|_| "Coefficients already loaded.".to_string())
-}
-
-/// Retrieves the coefficients for a specific event and gender.
-/// Returns `None` if the event or gender is not found.
-pub fn get_coefficients(gender: Gender, event_name: &str) -> Option<Coefficients> {
-    COEFFICIENTS.get().and_then(|table| {
-        let gender_map = match gender {
-            Gender::Men => &table.men.events,
-            Gender::Women => &table.women.events,
-        };
-        gender_map
-            .get(event_name)
-            .map(|raw_coefficients| raw_coefficients.clone().into())
-    })
 }
 
 #[cfg(test)]
@@ -133,28 +137,31 @@ mod tests {
     /// Tests the integration of loading and retrieving coefficients using the public functions.
     #[test]
     fn test_get_coefficients_function_integration() {
-        // Ensure the OnceCell is not already set from a previous test run
-        // This is important for isolated test execution.
-        // In a real test suite, you might use a test harness or clear the static.
-        // For simplicity here, we'll just try to set it and ignore if already set.
-        let _ = COEFFICIENTS.set(serde_json::from_str(TEST_JSON_DATA).unwrap());
+        let table: CoefficientsTable =
+            serde_json::from_str(TEST_JSON_DATA).expect("Failed to parse test JSON data");
 
         // Test retrieving men's LJ
-        let men_lj_coefficients =
-            get_coefficients(Gender::Men, "LJ").expect("Failed to get men's LJ coefficients");
+        let men_lj_coefficients = table
+            .get_coefficients(Gender::Men, "LJ")
+            .expect("Failed to get men's LJ coefficients");
         assert_approx_eq!(men_lj_coefficients.conversion_factor, 1.931092872960562);
         assert_approx_eq!(men_lj_coefficients.result_shift, 186.73134733641928);
         assert_approx_eq!(men_lj_coefficients.point_shift, -479.7064044575963);
 
         // Test retrieving women's 100m
-        let women_100m_coefficients = get_coefficients(Gender::Women, "100m")
+        let women_100m_coefficients = table
+            .get_coefficients(Gender::Women, "100m")
             .expect("Failed to get women's 100m coefficients");
         assert_approx_eq!(women_100m_coefficients.conversion_factor, 9.927426450685289);
         assert_approx_eq!(women_100m_coefficients.result_shift, -436.6751262119069);
         assert_approx_eq!(women_100m_coefficients.point_shift, 4802.020943877404);
 
         // Test a non-existent event for a specific gender
-        assert!(get_coefficients(Gender::Men, "NonExistentEvent").is_none());
-        assert!(get_coefficients(Gender::Women, "AnotherNonExistent").is_none());
+        assert!(table
+            .get_coefficients(Gender::Men, "NonExistentEvent")
+            .is_none());
+        assert!(table
+            .get_coefficients(Gender::Women, "AnotherNonExistent")
+            .is_none());
     }
 }

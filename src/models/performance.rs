@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 // src/models/performance.rs
 /// Represents events typically categorized under Track & Field.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -253,7 +255,7 @@ impl ToString for Gender {
         }
     }
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum CompetitionCategory {
     /// Other competitions
     F,
