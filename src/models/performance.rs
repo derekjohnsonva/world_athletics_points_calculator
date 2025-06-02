@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::scoring_logic::placement_score::{PlacementScoreEventGroup, RoundType};
+
 // src/models/performance.rs
 /// Represents events typically categorized under Track & Field.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -131,6 +133,49 @@ pub enum Event {
     RoadRunning(RoadRunningEvent),
     RaceWalking(RaceWalkingEvent),
     CrossCountry(CrossCountryEvent),
+}
+
+impl Event {
+    pub fn to_placement_score_event_group(&self) -> PlacementScoreEventGroup {
+        match self {
+            Event::TrackAndField(TrackAndFieldEvent::M5000)
+            | Event::TrackAndField(TrackAndFieldEvent::M3000mSC) => {
+                PlacementScoreEventGroup::Distance5000m3000mSC
+            }
+
+            Event::TrackAndField(TrackAndFieldEvent::M10000) => {
+                PlacementScoreEventGroup::Distance10000m
+            }
+            Event::RoadRunning(RoadRunningEvent::Road10km) => PlacementScoreEventGroup::Road10km,
+            Event::RoadRunning(RoadRunningEvent::RoadMarathon) => {
+                PlacementScoreEventGroup::RoadMarathon
+            }
+            Event::RoadRunning(RoadRunningEvent::RoadHM) // TODO: Determine what to do when the half marathon is the Main Event 
+            | Event::RoadRunning(RoadRunningEvent::Road30km)
+            | Event::RoadRunning(RoadRunningEvent::Road25km) => {
+                PlacementScoreEventGroup::HalfMarathon
+            }
+            Event::RaceWalking(RaceWalkingEvent::M20000mW) 
+            | Event::RaceWalking(RaceWalkingEvent::Road20kmW) 
+            | Event::RaceWalking(RaceWalkingEvent::Road5kmW) 
+            | Event::RaceWalking(RaceWalkingEvent::Road10kmW) 
+            | Event::RaceWalking(RaceWalkingEvent::Road15kmW) 
+            | Event::RaceWalking(RaceWalkingEvent::M3000mW) 
+            | Event::RaceWalking(RaceWalkingEvent::M5000mW) 
+            | Event::RaceWalking(RaceWalkingEvent::M10000mW) 
+            | Event::RaceWalking(RaceWalkingEvent::M15000mW) => {
+                PlacementScoreEventGroup::RaceWalking20Km
+            },
+            Event::RaceWalking(RaceWalkingEvent::M35000mW) | Event::RaceWalking(RaceWalkingEvent::Road35kmW) => {
+                PlacementScoreEventGroup::RaceWalking35Km
+            },
+            Event::RaceWalking(_) => PlacementScoreEventGroup::RaceWalking35KmSimilar,
+            Event::TrackAndField(_) => PlacementScoreEventGroup::TrackAndField,
+            Event::CombinedEvents(_) => PlacementScoreEventGroup::CombinedEvent,
+            Event::RoadRunning(_) => PlacementScoreEventGroup::RoadRunning,
+            Event::CrossCountry(_) => PlacementScoreEventGroup::CrossCountry,
+        }
+    }
 }
 
 impl ToString for Event {
@@ -282,10 +327,11 @@ pub enum CompetitionCategory {
 #[derive(Debug, Clone)]
 pub struct PlacementInfo {
     pub competition_category: CompetitionCategory,
-    pub event_placement: i32,
-    pub is_final: bool,
+    pub place: i32,
+    pub round: RoundType,
     /// The size of the final impacts how the prelim is scored
-    pub field_size_of_final: Option<i32>,
+    pub size_of_final: i32,
+    pub qualified_to_final: bool,
 }
 /// Represents the input data required to calculate a World Athletics Score.
 #[derive(Debug, Clone)]

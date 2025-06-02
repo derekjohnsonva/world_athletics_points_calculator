@@ -64,6 +64,37 @@ impl CoefficientsTable {
             .get(event_name)
             .map(|raw_coefficients| raw_coefficients.clone().into())
     }
+
+    /// Calculates the points based on a result and the event-specific coefficients.
+    ///
+    /// The formula is: `points = floor(conversionFactor * (result + resultShift)^2 + pointShift)`
+    ///
+    /// # Arguments
+    /// * `result` - The performance result in the standard unit (e.g., seconds for track, meters for field).
+    /// * 'gender' - The gender of the competitor
+    /// * 'event_name' - The events string name
+    /// # Returns
+    /// The calculated World Athletics points as a floored `f64`.
+    pub fn calculate_result_score(
+        &self,
+        result: f64,
+        gender: Gender,
+        event_name: &str,
+    ) -> Result<f64, String> {
+        let coefficients = self.get_coefficients(gender, event_name).ok_or_else(|| {
+            format!(
+                "Coefficients not found for gender {:?} and event: {}",
+                gender.to_string(),
+                event_name,
+            )
+        })?;
+        // points = floor(conversionFactor * (result + resultShift)^2 + pointShift)
+        // coefficients[0] * x * x + coefficients[1] * x + coefficients[2]
+        let raw_points = coefficients.conversion_factor * result * result
+            + coefficients.result_shift * result
+            + coefficients.point_shift;
+        Ok(raw_points.round()) // Ensure the final points are floored
+    }
 }
 
 // Global static for holding the loaded coefficients.
@@ -94,11 +125,13 @@ mod tests {
     const TEST_JSON_DATA: &str = r#"{
         "men": {
             "100m": [24.642211664166098, -837.7135408530303, 7119.3125116789015],
-            "LJ": [1.931092872960562, 186.73134733641928, -479.70640445759636]
+            "LJ": [1.931092872960562, 186.73134733641928, -479.70640445759636],
+            "5000m": [0.002777997945427213,  -8.000608112196687,5760.418712362531] 
         },
         "women": {
             "100m": [9.927426450685289, -436.6751262119069, 4802.020943877404],
-            "HJ": [39.557908744493034, 831.3655724464043, -601.5063267494843]
+            "HJ": [39.557908744493034, 831.3655724464043, -601.5063267494843],
+            "LJ": [1.958114032649064, 193.69548254413166,-233.98988652729167]
         }
     }"#;
 
@@ -134,7 +167,6 @@ mod tests {
         assert!(table.men.events.get("NonExistentEvent").is_none());
     }
 
-    /// Tests the integration of loading and retrieving coefficients using the public functions.
     #[test]
     fn test_get_coefficients_function_integration() {
         let table: CoefficientsTable =
@@ -163,5 +195,33 @@ mod tests {
         assert!(table
             .get_coefficients(Gender::Women, "AnotherNonExistent")
             .is_none());
+    }
+
+    #[test]
+    fn test_calculate_placement_score() {
+        let table: CoefficientsTable =
+            serde_json::from_str(TEST_JSON_DATA).expect("Failed to parse test JSON data");
+
+        // A Men's 100m result of 10.5 seconds should yield 1040.0 points
+        let points = table.calculate_result_score(10.5, Gender::Men, "100m");
+        assert!(points.is_ok());
+        let points = points.unwrap();
+        assert_approx_eq!(points, 1040.0);
+
+        // A womens long jump of 6.5 meters should result in 1108.0 points
+        let points = table.calculate_result_score(6.5, Gender::Women, "LJ");
+        assert!(points.is_ok());
+        let points = points.unwrap();
+        assert_approx_eq!(points, 1108.0);
+
+        // Test with a non-existent event
+        let points = table.calculate_result_score(10.0, Gender::Men, "NonExistentEvent");
+        assert!(points.is_err());
+
+        // Test with a 5k value of 14 minutes (840 seconds) that should yield 1000.0 points
+        let points = table.calculate_result_score(840.0, Gender::Men, "5000m");
+        assert!(points.is_ok());
+        let points = points.unwrap();
+        assert_approx_eq!(points, 1000.0);
     }
 }

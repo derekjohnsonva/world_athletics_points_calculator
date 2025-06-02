@@ -1,25 +1,8 @@
 // src/scoring_logic/calculator.rs
 use crate::models::{Event, Gender, TrackAndFieldEvent, WorldAthleticsScoreInput};
-use crate::scoring_logic::coefficients::Coefficients; // Corrected import path for get_coefficients
+use crate::scoring_logic::coefficients::Coefficients;
 
-/// Calculates the points based on a result and the event-specific coefficients.
-///
-/// The formula is: `points = floor(conversionFactor * (result + resultShift)^2 + pointShift)`
-///
-/// # Arguments
-/// * `result` - The performance result in the standard unit (e.g., seconds for track, meters for field).
-/// * `coefficients` - A reference to the Coefficients struct containing conversionFactor, resultShift, and pointShift.
-///
-/// # Returns
-/// The calculated World Athletics points as a floored `f64`.
-pub(crate) fn calculate_points_from_coefficients(result: f64, coefficients: &Coefficients) -> f64 {
-    // points = floor(conversionFactor * (result + resultShift)^2 + pointShift)
-    // coefficients[0] * x * x + coefficients[1] * x + coefficients[2]
-    let raw_points = coefficients.conversion_factor * result * result
-        + coefficients.result_shift * result
-        + coefficients.point_shift;
-    raw_points.round() // Ensure the final points are floored
-}
+use super::placement_score::PlacementScoreCalcInput;
 
 /// Determines if an event is affected by wind for scoring modifications.
 /// The wind modification applies in the following events:
@@ -99,30 +82,33 @@ pub(crate) fn calculate_wind_adjustment(wind_speed: Option<f64>) -> f64 {
 /// or a `String` error message if coefficients are not found.
 pub fn calculate_world_athletics_score(
     input: WorldAthleticsScoreInput,
-    coeff_fetcher: fn(Gender, &str) -> Option<Coefficients>, // Added for mockability
+    result_score_calculator: fn(f64, Gender, &str) -> Result<f64, String>,
+    placement_score_calculator: fn(PlacementScoreCalcInput) -> Option<i32>,
 ) -> Result<f64, String> {
     let event_id = input.event.to_string(); // e.g., "100m", "TJ"
     let gender = input.gender;
 
-    // Use the provided coeff_fetcher instead of directly calling get_coefficients
-    let coefficients = coeff_fetcher(gender, &event_id).ok_or_else(|| {
-        format!(
-            "Coefficients not found for gender {:?} and event: {}",
-            gender.to_string(),
-            event_id
-        )
-    })?;
-
     // The input.performance is assumed to be already in the standard unit (f64)
-    let mut result_score = calculate_points_from_coefficients(input.performance, &coefficients);
+    let mut result_score = result_score_calculator(input.performance, gender, &event_id)?;
     // Modify result score due to wind for some track events
     // The wind modification applies in the following events:
     if is_wind_affected_event(&input.event) {
         result_score += calculate_wind_adjustment(input.wind_speed);
     }
+    let mut placing_score = 0;
 
-    let placing_score = 0.0;
-    let points = result_score + placing_score;
+    if let Some(placement_info) = input.placement_info {
+        placing_score += placement_score_calculator(PlacementScoreCalcInput {
+            event: input.event,
+            competition_category: placement_info.competition_category,
+            round_type: placement_info.round,
+            place: placement_info.place,
+            qualified_to_final: placement_info.qualified_to_final,
+            size_of_final: placement_info.size_of_final,
+        })
+        .unwrap_or(0);
+    }
+    let points = result_score + (placing_score as f64);
 
     Ok(points)
 }
@@ -130,32 +116,37 @@ pub fn calculate_world_athletics_score(
 #[cfg(test)]
 mod tests {
     use super::*; // Import everything from the parent module
-    use crate::models::{Event, Gender, TrackAndFieldEvent, WorldAthleticsScoreInput};
-    use crate::scoring_logic::coefficients::Coefficients; // Corrected import for load_coefficients
+    use crate::models::*;
+    use crate::scoring_logic::placement_score::RoundType;
     use assert_approx_eq::assert_approx_eq;
 
-    // --- Mock function for get_coefficients ---
-    /// A mock implementation of `get_coefficients` for testing `calculate_world_athletics_score`
-    /// in isolation. It provides predefined coefficients for specific gender/event combinations.
-    fn mock_get_coefficients(gender: Gender, event_name: &str) -> Option<Coefficients> {
-        match (gender, event_name) {
-            (Gender::Men, "100m") => Some(Coefficients {
-                conversion_factor: 24.642211664166098,
-                result_shift: -837.7135408530303,
-                point_shift: 7119.3125116789015,
-            }),
-            (Gender::Women, "LJ") => Some(Coefficients {
-                conversion_factor: 1.958114032649064,
-                result_shift: 193.69548254413166,
-                point_shift: -233.98988652729167,
-            }),
-            (Gender::Men, "5000m") => Some(Coefficients {
-                conversion_factor: 0.002777997945427213,
-                result_shift: -8.000608112196687,
-                point_shift: 5760.418712362531,
-            }),
-            // Add more mock data here as needed for your test cases
-            _ => None, // Return None for any other event/gender combination
+    // --- Mock function for results score calculator ---
+    /// A mock implementation of `result_score_calculator` for testing.
+    /// It simulates the calculation of World Athletics points based on a performance result.
+    /// It will always return the performance
+    fn mock_result_score_calculator(
+        performance: f64,
+        _gender: Gender,
+        _event_name: &str,
+    ) -> Result<f64, String> {
+        Ok(performance)
+    }
+    // --- Mock function for placement_score_calculator ---
+    /// A mock implementation of `placement_score_calculator` for testing.
+    /// It returns a fixed score based on the placement.
+    /// This is a simplified mock for testing purposes.
+    /// # Arguments
+    /// * `input` - A `PlacementScoreCalcInput` struct containing placement details.
+    /// # Returns
+    /// An `Option<i32>` representing the placement score.
+    /// This mock simply returns a fixed score based on the place.
+    /// If the place is 1, it returns 100 points; otherwise, it returns 0.
+    fn mock_placement_score_calculator(input: PlacementScoreCalcInput) -> Option<i32> {
+        // For simplicity, let's say 1st place gets 100 points, others get 0.
+        if input.place == 1 {
+            Some(100)
+        } else {
+            Some(0)
         }
     }
 
@@ -199,9 +190,13 @@ mod tests {
             wind_speed: Some(0.0),
             placement_info: None,
         };
-        let expected_points1 = 1040.0; // taken from the scoring table
-        let output1 = calculate_world_athletics_score(input1, mock_get_coefficients)
-            .expect("Calculation failed for men's 100m");
+        let expected_points1 = 10.50; // 10.50
+        let output1 = calculate_world_athletics_score(
+            input1,
+            mock_result_score_calculator,
+            mock_placement_score_calculator,
+        )
+        .expect("Calculation failed for men's 100m");
         assert_eq!(output1, expected_points1);
 
         // Test case 2: Women's Long Jump (LJ)
@@ -212,23 +207,14 @@ mod tests {
             wind_speed: Some(0.0), // with no wind we will apply a penalty
             placement_info: None,
         };
-        let expected_points2 = 1108.0;
-        let output2 = calculate_world_athletics_score(input2, mock_get_coefficients)
-            .expect("Calculation failed for women's LJ");
+        let expected_points2 = 6.5;
+        let output2 = calculate_world_athletics_score(
+            input2,
+            mock_result_score_calculator,
+            mock_placement_score_calculator,
+        )
+        .expect("Calculation failed for women's LJ");
         assert_eq!(output2, expected_points2);
-
-        // Test case 3: Non-existent event (mocked to return None)
-        let input3 = WorldAthleticsScoreInput {
-            gender: Gender::Men,
-            // This event is not explicitly mocked in `mock_get_coefficients`, so it will return None.
-            event: Event::TrackAndField(TrackAndFieldEvent::M50m_sh),
-            performance: 6.0,
-            wind_speed: None,
-            placement_info: None,
-        };
-        let error_output = calculate_world_athletics_score(input3, mock_get_coefficients);
-        assert!(error_output.is_err());
-        assert!(error_output.unwrap_err().contains("Coefficients not found"));
 
         // Test case 4: Men's 5000m (using a value that would be in seconds)
         let input4 = WorldAthleticsScoreInput {
@@ -238,9 +224,53 @@ mod tests {
             wind_speed: None,
             placement_info: None,
         };
-        let expected_points4 = 1000.0;
-        let output4 = calculate_world_athletics_score(input4, mock_get_coefficients)
-            .expect("Calculation failed for men's 5000m");
+        let expected_points4 = 840.0;
+        let output4 = calculate_world_athletics_score(
+            input4,
+            mock_result_score_calculator,
+            mock_placement_score_calculator,
+        )
+        .expect("Calculation failed for men's 5000m");
         assert_eq!(output4, expected_points4);
+
+        // Test case 5: Men's 35km Race Walk. Use a winning position in the final. This should add 100 points.
+        let input5 = WorldAthleticsScoreInput {
+            gender: Gender::Men,
+            event: Event::RaceWalking(RaceWalkingEvent::Road35kmW),
+            performance: 9415.0, // Example: 2:36:55
+            wind_speed: None,
+            placement_info: Some(PlacementInfo {
+                competition_category: CompetitionCategory::A,
+                round: RoundType::Final,
+                place: 1,
+                qualified_to_final: true,
+                size_of_final: 12,
+            }),
+        };
+        let expected_points5 = 9415.0 + 100.0; // 9415.0 + 100 points for placement
+        let output5 = calculate_world_athletics_score(
+            input5,
+            mock_result_score_calculator,
+            mock_placement_score_calculator,
+        )
+        .expect("Calculation failed for men's 35km Race Walk");
+        assert_eq!(output5, expected_points5);
+
+        // Test case 6: Womens LJ with a -3.0 m/s headwind
+        let input6 = WorldAthleticsScoreInput {
+            gender: Gender::Women,
+            event: Event::TrackAndField(TrackAndFieldEvent::LJ),
+            performance: 6.50,      // Example: 6.50 meters
+            wind_speed: Some(-3.0), // -3.0 m/s headwind
+            placement_info: None,
+        };
+        let expected_points6 = 6.50 + 18.0; // 6.50 performance + 18.0 points for headwind adjustment
+        let output6 = calculate_world_athletics_score(
+            input6,
+            mock_result_score_calculator,
+            mock_placement_score_calculator,
+        )
+        .expect("Calculation failed for women's LJ with headwind");
+        assert_eq!(output6, expected_points6);
     }
 }
