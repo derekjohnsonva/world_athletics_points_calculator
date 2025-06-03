@@ -1,3 +1,4 @@
+use crate::components::gender_toggle_form::GenderToggleForm;
 use leptos::prelude::*;
 use leptos_meta::*;
 
@@ -27,6 +28,7 @@ pub fn Home() -> impl IntoView {
             <main>
                 <div class="">
                     <h1>Hello</h1>
+                    <GenderToggleForm />
                 </div>
             </main>
         </ErrorBoundary>
