@@ -6,7 +6,7 @@ use leptos_router::{components::*, path};
 mod components;
 mod models;
 mod pages;
-mod scoring_logic;
+pub mod scoring_logic;
 
 // Top-Level pages
 use crate::pages::home::Home;

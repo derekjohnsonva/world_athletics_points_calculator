@@ -190,7 +190,8 @@ impl PlacementCalculator {
 
 /// Initialize the placement calculator with JSON data
 /// This should be called once at application startup
-pub fn init_placement_score_calculator(json_data: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn init_placement_score_calculator() -> Result<(), Box<dyn std::error::Error>> {
+    let json_data = include_str!("../../data/track_and_field_placement_scores.json");
     let calculator = PlacementCalculator::new(json_data)?;
     CALCULATOR
         .set(calculator)
