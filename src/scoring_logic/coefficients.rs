@@ -49,10 +49,6 @@ pub struct CoefficientsTable {
 }
 
 impl CoefficientsTable {
-    fn new(json_data: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let coefficients_table: CoefficientsTable = serde_json::from_str(json_data)?;
-        Ok(coefficients_table)
-    }
     /// Retrieves the coefficients for a specific event and gender.
     /// Returns `None` if the event or gender is not found.
     pub fn get_coefficients(&self, gender: Gender, event_name: &str) -> Option<Coefficients> {

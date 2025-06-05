@@ -31,9 +31,9 @@ struct PlacementScoreData {
     track_field_final: HashMap<CompetitionCategory, HashMap<i32, i32>>,
     track_field_semi_max9: HashMap<CompetitionCategory, HashMap<i32, i32>>,
     track_field_semi_10plus: HashMap<CompetitionCategory, HashMap<i32, i32>>,
-    distance_5000m_3000mSC_final: HashMap<CompetitionCategory, HashMap<i32, i32>>,
-    distance_5000m_3000mSC_semi_max9: HashMap<CompetitionCategory, HashMap<i32, i32>>,
-    distance_5000m_3000mSC_semi_10plus: HashMap<CompetitionCategory, HashMap<i32, i32>>,
+    distance_5000m_3000m_sc_final: HashMap<CompetitionCategory, HashMap<i32, i32>>,
+    distance_5000m_3000m_sc_semi_max9: HashMap<CompetitionCategory, HashMap<i32, i32>>,
+    distance_5000m_3000m_sc_semi_10plus: HashMap<CompetitionCategory, HashMap<i32, i32>>,
     distance_10000m_final: HashMap<CompetitionCategory, HashMap<i32, i32>>,
     road_10km_final: HashMap<CompetitionCategory, HashMap<i32, i32>>,
     combined_events: HashMap<CompetitionCategory, HashMap<i32, i32>>,
@@ -100,7 +100,7 @@ impl PlacementCalculator {
             }
             (PlacementScoreEventGroup::Distance5000m3000mSC, RoundType::Final) => self
                 .data
-                .distance_5000m_3000mSC_final
+                .distance_5000m_3000m_sc_final
                 .get(&input.competition_category)?
                 .get(place)
                 .copied(),
@@ -108,13 +108,13 @@ impl PlacementCalculator {
                 // check to see which semifinal table to use
                 if input.size_of_final <= 9 {
                     self.data
-                        .distance_5000m_3000mSC_semi_max9
+                        .distance_5000m_3000m_sc_semi_max9
                         .get(&input.competition_category)?
                         .get(place)
                         .copied()
                 } else {
                     self.data
-                        .distance_5000m_3000mSC_semi_10plus
+                        .distance_5000m_3000m_sc_semi_10plus
                         .get(&input.competition_category)?
                         .get(place)
                         .copied()

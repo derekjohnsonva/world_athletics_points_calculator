@@ -1,6 +1,5 @@
 // src/scoring_logic/calculator.rs
 use crate::models::{Event, Gender, TrackAndFieldEvent, WorldAthleticsScoreInput};
-use crate::scoring_logic::coefficients::Coefficients;
 
 use super::placement_score::PlacementScoreCalcInput;
 
@@ -100,7 +99,7 @@ pub(crate) fn calculate_downhill_adjustment(net_downhill: Option<f64>) -> f64 {
                 let deduction_additional = (excess * 10.0) * POINTS_PER_0_1_M_KM; // 0.6 points per 0.1 m/km
                 -(deduction_base + deduction_additional)
             }
-        },
+        }
         None => 0.0, // No adjustment if no drop specified
     }
 }
@@ -130,18 +129,18 @@ pub fn calculate_world_athletics_score(
 
     // The input.performance is assumed to be already in the standard unit (f64)
     let mut result_score = result_score_calculator(input.performance, gender, &event_id)?;
-    
+
     // Modify result score due to wind for some track events
     // The wind modification applies in the following events:
     if is_wind_affected_event(&input.event) {
         result_score += calculate_wind_adjustment(input.wind_speed);
     }
-    
+
     // Apply downhill adjustment for road running events
     if is_road_running_event(&input.event) {
         result_score += calculate_downhill_adjustment(input.net_downhill);
     }
-    
+
     let mut placing_score = 0;
 
     if let Some(placement_info) = input.placement_info {
@@ -228,7 +227,7 @@ mod tests {
         // Test case for No Wind Information (NWI)
         assert_eq!(calculate_wind_adjustment(None), -30.0);
     }
-    
+
     /// Tests the `calculate_downhill_adjustment` helper function.
     #[test]
     fn test_calculate_downhill_adjustment() {
@@ -237,7 +236,7 @@ mod tests {
         assert_eq!(calculate_downhill_adjustment(Some(0.0)), 0.0); // Flat course
         assert_eq!(calculate_downhill_adjustment(Some(0.5)), 0.0); // 0.5 m/km (within allowed)
         assert_eq!(calculate_downhill_adjustment(Some(1.0)), 0.0); // 1.0 m/km (exactly allowed)
-        
+
         // Beyond allowed limit:
         assert_approx_eq!(calculate_downhill_adjustment(Some(1.1)), -6.6); // 1.1 m/km: -6 - (0.1*10*0.6) = -6.6
         assert_approx_eq!(calculate_downhill_adjustment(Some(1.2)), -7.2); // 1.2 m/km: -6 - (0.2*10*0.6) = -7.2
@@ -346,7 +345,7 @@ mod tests {
         )
         .expect("Calculation failed for women's LJ with headwind");
         assert_eq!(output6, expected_points6);
-        
+
         // Test case 7: Road Marathon with a downhill course (1.5 m/km drop)
         let input7 = WorldAthleticsScoreInput {
             gender: Gender::Men,
@@ -364,7 +363,7 @@ mod tests {
         )
         .expect("Calculation failed for men's Road Marathon with downhill course");
         assert_eq!(output7, expected_points7);
-        
+
         // Test case 8: Road 10km with a significant downhill course (2.5 m/km drop)
         let input8 = WorldAthleticsScoreInput {
             gender: Gender::Women,

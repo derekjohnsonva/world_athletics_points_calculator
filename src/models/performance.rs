@@ -53,26 +53,26 @@ pub enum TrackAndFieldEvent {
     HT,
     JT,
     // Indoor/Short Track specific events (often denoted by 'sh' in JSON)
-    M50m_sh,
-    M55m_sh,
-    M60m_sh,
-    M200m_sh,
-    M300m_sh,
-    M400m_sh,
-    M500m_sh,
-    M600m_sh,
-    M800m_sh,
-    M1000m_sh,
-    M1500m_sh,
-    M2000m_sh,
-    M3000m_sh,
-    M5000m_sh,
-    Mile_sh,
-    M2Miles_sh, // Mile and 2 Miles on short track
-    M4x100m_sh,
-    M4x200m_sh,
-    M4x400m_sh,
-    M4x400mix_sh,
+    M50mSh,
+    M55mSh,
+    M60mSh,
+    M200mSh,
+    M300mSh,
+    M400mSh,
+    M500mSh,
+    M600mSh,
+    M800mSh,
+    M1000mSh,
+    M1500mSh,
+    M2000mSh,
+    M3000mSh,
+    M5000mSh,
+    MileSh,
+    M2MilesSh, // Mile and 2 Miles on short track
+    M4x100mSh,
+    M4x200mSh,
+    M4x400mSh,
+    M4x400mixSh,
 }
 
 /// Represents Combined Events.
@@ -80,9 +80,9 @@ pub enum TrackAndFieldEvent {
 pub enum CombinedEvent {
     #[default]
     Dec, // Decathlon
-    Hept,    // Heptathlon
-    Hept_sh, // Heptathlon (short track/indoor component)
-    Pent_sh, // Pentathlon (short track/indoor component)
+    Hept,   // Heptathlon
+    HeptSh, // Heptathlon (short track/indoor component)
+    PentSh, // Pentathlon (short track/indoor component)
 }
 
 /// Represents Road Running Events.
@@ -262,31 +262,31 @@ impl fmt::Display for Event {
                 TrackAndFieldEvent::DT => "DT",
                 TrackAndFieldEvent::HT => "HT",
                 TrackAndFieldEvent::JT => "JT",
-                TrackAndFieldEvent::M50m_sh => "50m sh",
-                TrackAndFieldEvent::M55m_sh => "55m sh",
-                TrackAndFieldEvent::M60m_sh => "60m sh",
-                TrackAndFieldEvent::M200m_sh => "200m sh",
-                TrackAndFieldEvent::M300m_sh => "300m sh",
-                TrackAndFieldEvent::M400m_sh => "400m sh",
-                TrackAndFieldEvent::M500m_sh => "500m sh",
-                TrackAndFieldEvent::M600m_sh => "600m sh",
-                TrackAndFieldEvent::M800m_sh => "800m sh",
-                TrackAndFieldEvent::M1000m_sh => "1000m sh",
-                TrackAndFieldEvent::M1500m_sh => "1500m sh",
-                TrackAndFieldEvent::M2000m_sh => "2000m sh",
-                TrackAndFieldEvent::M3000m_sh => "3000m sh",
-                TrackAndFieldEvent::M5000m_sh => "5000m sh",
-                TrackAndFieldEvent::Mile_sh => "Mile sh",
-                TrackAndFieldEvent::M2Miles_sh => "2 Miles sh",
-                TrackAndFieldEvent::M4x100m_sh => "4x100m sh",
-                TrackAndFieldEvent::M4x200m_sh => "4x200m sh",
-                TrackAndFieldEvent::M4x400m_sh => "4x400m sh",
-                TrackAndFieldEvent::M4x400mix_sh => "4x400mix sh",
+                TrackAndFieldEvent::M50mSh => "50m sh",
+                TrackAndFieldEvent::M55mSh => "55m sh",
+                TrackAndFieldEvent::M60mSh => "60m sh",
+                TrackAndFieldEvent::M200mSh => "200m sh",
+                TrackAndFieldEvent::M300mSh => "300m sh",
+                TrackAndFieldEvent::M400mSh => "400m sh",
+                TrackAndFieldEvent::M500mSh => "500m sh",
+                TrackAndFieldEvent::M600mSh => "600m sh",
+                TrackAndFieldEvent::M800mSh => "800m sh",
+                TrackAndFieldEvent::M1000mSh => "1000m sh",
+                TrackAndFieldEvent::M1500mSh => "1500m sh",
+                TrackAndFieldEvent::M2000mSh => "2000m sh",
+                TrackAndFieldEvent::M3000mSh => "3000m sh",
+                TrackAndFieldEvent::M5000mSh => "5000m sh",
+                TrackAndFieldEvent::MileSh => "Mile sh",
+                TrackAndFieldEvent::M2MilesSh => "2 Miles sh",
+                TrackAndFieldEvent::M4x100mSh => "4x100m sh",
+                TrackAndFieldEvent::M4x200mSh => "4x200m sh",
+                TrackAndFieldEvent::M4x400mSh => "4x400m sh",
+                TrackAndFieldEvent::M4x400mixSh => "4x400mix sh",
             },
             Event::CombinedEvents(e) => match e {
                 CombinedEvent::Dec => "Dec.",
-                CombinedEvent::Hept_sh => "Hept. sh",
-                CombinedEvent::Pent_sh => "Pent. sh",
+                CombinedEvent::HeptSh => "Hept. sh",
+                CombinedEvent::PentSh => "Pent. sh",
                 CombinedEvent::Hept => "Hept.",
             },
             Event::RoadRunning(e) => match e {

@@ -174,7 +174,7 @@
       "12": 30
     }
   },
-  "distance_5000m_3000mSC_final": {
+  "distance_5000m_3000m_sc_final": {
     "OW": {
       "1": 305,
       "2": 270,
@@ -289,7 +289,7 @@
       "3": 4
     }
   },
-  "distance_5000m_3000mSC_semi_max9": {
+  "distance_5000m_3000m_sc_semi_max9": {
     "OW": {
       "1": 80,
       "10": 75,
@@ -319,7 +319,7 @@
       "12": 40
     }
   },
-  "distance_5000m_3000mSC_semi_10plus": {
+  "distance_5000m_3000m_sc_semi_10plus": {
     "OW": {
       "1": 80,
       "10": 75,

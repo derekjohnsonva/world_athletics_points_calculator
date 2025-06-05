@@ -1,8 +1,6 @@
 use crate::models::*;
 use crate::scoring_logic::calculator::{
-    calculate_world_athletics_score,
-    is_wind_affected_event,
-    is_road_running_event,
+    calculate_world_athletics_score, is_road_running_event, is_wind_affected_event,
 };
 use crate::scoring_logic::coefficients::calculate_result_score;
 use crate::scoring_logic::placement_score::calculate_placement_score;
@@ -28,10 +26,6 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
     let (qualified_to_final, set_qualified_to_final) = signal(false);
     let (points, set_points) = signal(0.0);
     let (points_calculated, set_points_calculated) = signal(false);
-
-    // Helper to determine if the round is not Final
-    let is_not_final_round = move || round.get() != RoundType::Final;
-
     // Submit handler
     let handle_submit = move || {
         let placement_info = Some(PlacementInfo {
@@ -78,16 +72,6 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
         }
     };
 
-    let handle_select_change = move |ev: leptos::ev::SubmitEvent| {
-        let value = event_target_value(&ev);
-        log::info!("Select changed to: {}", value);
-
-        if let Some(event_type) = Event::from_string(&value) {
-            set_event.set(event_type);
-            // log::info!("Set event to: {:?}", event_type);
-        }
-    };
-
     view! {
         <form
             class="space-y-4"
@@ -97,8 +81,12 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
             }
         >
             <div class="mb-6 text-center">
-                <h2 class="text-2xl font-bold text-gray-900 mb-2">World Athletics Points Calculator</h2>
-                <p class="text-gray-600">Enter event details below to calculate performance points based on World Athletics scoring tables</p>
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">
+                    World Athletics Points Calculator
+                </h2>
+                <p class="text-gray-600">
+                    Enter event details below to calculate performance points based on World Athletics scoring tables
+                </p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                 <label for="gender" class="text-gray-800 font-medium">
@@ -135,7 +123,8 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                         }
                     }
                 >
-                    {Event::all_variants().into_iter()
+                    {Event::all_variants()
+                        .into_iter()
                         .map(|event_option| {
                             let event_string = event_option.to_string();
                             let is_selected = move || event.get() == event_option;
@@ -182,7 +171,7 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                     />
                 </div>
             </Show>
-            
+
             <Show
                 when=move || { is_road_running_event(&event.get()) }
                 fallback=|| view! { <div></div> }
@@ -229,18 +218,24 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                         }
                     }
                 >
-                {CompetitionCategory::iter()
-                    .map(|competition_category_option| {
-                        let competition_category_option_string = competition_category_option.to_string();
-                        let is_selected = move || competition_category.get() == competition_category_option;
+                    {CompetitionCategory::iter()
+                        .map(|competition_category_option| {
+                            let competition_category_option_string = competition_category_option
+                                .to_string();
+                            let is_selected = move || {
+                                competition_category.get() == competition_category_option
+                            };
 
-                        view! {
-                            <option value=competition_category_option_string selected=is_selected>
-                                {competition_category_option_string.clone()}
-                            </option>
-                        }
-                    })
-                    .collect::<Vec<_>>()}
+                            view! {
+                                <option
+                                    value=competition_category_option_string
+                                    selected=is_selected
+                                >
+                                    {competition_category_option_string.clone()}
+                                </option>
+                            }
+                        })
+                        .collect::<Vec<_>>()}
 
                 </select>
             </div>
@@ -329,11 +324,24 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
 
                 <Show
                     when=move || points_calculated.get()
-                    fallback=|| view! { <div class="mt-6 text-center text-gray-500 italic">"Submit the form to calculate points"</div> }
+                    fallback=|| {
+                        view! {
+                            <div class="mt-6 text-center text-gray-500 italic">
+                                "Submit the form to calculate points"
+                            </div>
+                        }
+                    }
                 >
                     <div class="mt-6 text-center p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
-                        <h3 class="text-2xl font-bold text-gray-800">{"Points: "}<span class="text-gray-900">{move || format!("{:.2}", points.get())}</span></h3>
-                        <p class="text-sm text-gray-600 mt-1">Based on World Athletics scoring tables with adjustments for wind and elevation</p>
+                        <h3 class="text-2xl font-bold text-gray-800">
+                            {"Points: "}
+                            <span class="text-gray-900">
+                                {move || format!("{:.2}", points.get())}
+                            </span>
+                        </h3>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Based on World Athletics scoring tables with adjustments for wind and elevation
+                        </p>
                     </div>
                 </Show>
             </div>
