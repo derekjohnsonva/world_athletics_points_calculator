@@ -29,8 +29,14 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
     let (include_placement, set_include_placement) = signal(true);
     let (points, set_points) = signal(0.0);
     let (points_calculated, set_points_calculated) = signal(false);
+    let (parse_error, set_parse_error) = signal(Option::<String>::None);
     // Submit handler
     let handle_submit = move || {
+        // Check if there's a parsing error before calculating
+        if parse_error.get().is_some() {
+            return; // Don't calculate if there's a parsing error
+        }
+
         // Parse performance based on event type
         let parsed_performance = match event.get().performance_type() {
             PerformanceType::Time => {
@@ -39,13 +45,25 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                     Ok(seconds) => seconds,
                     Err(_) => {
                         // If time parsing fails, try to parse as direct number (seconds)
-                        performance_input.get().parse::<f64>().unwrap_or(0.0)
+                        match performance_input.get().parse::<f64>() {
+                            Ok(seconds) => seconds,
+                            Err(_) => {
+                                set_parse_error.set(Some("Invalid time format. Use formats like 10.50, 1:30.25, or 2:15:30.50".to_string()));
+                                return;
+                            }
+                        }
                     }
                 }
             }
             PerformanceType::Distance => {
                 // For distance events, parse directly as meters
-                performance_input.get().parse::<f64>().unwrap_or(0.0)
+                match performance_input.get().parse::<f64>() {
+                    Ok(distance) => distance,
+                    Err(_) => {
+                        set_parse_error.set(Some("Invalid distance format. Enter a number in meters (e.g., 8.95)".to_string()));
+                        return;
+                    }
+                }
             }
         };
 
@@ -187,28 +205,58 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                             let value = event_target_value(&ev);
                             set_performance_input.set(value.clone());
 
-                            // Also update the numeric performance for backward compatibility
-                            let parsed_value = match event.get().performance_type() {
+                            // Clear any previous parse errors when user starts typing
+                            set_parse_error.set(None);
+
+                            // Validate input and update parse error if needed
+                            let validation_result = match event.get().performance_type() {
                                 PerformanceType::Time => {
-                                    Event::parse_time_to_seconds(&value).unwrap_or_else(|_| {
-                                        value.parse::<f64>().unwrap_or(0.0)
+                                    // Try to parse as time string first, then as direct seconds
+                                    Event::parse_time_to_seconds(&value).or_else(|_| {
+                                        value.parse::<f64>().map_err(|_| "Invalid time format. Use formats like 10.50, 1:30.25, or 2:15:30.50".to_string())
                                     })
                                 }
                                 PerformanceType::Distance => {
-                                    value.parse::<f64>().unwrap_or(0.0)
+                                    value.parse::<f64>().map_err(|_| "Invalid distance format. Enter a number in meters (e.g., 8.95)".to_string())
                                 }
                             };
-                            set_performance.set(parsed_value);
+
+                            match validation_result {
+                                Ok(parsed_value) => {
+                                    set_performance.set(parsed_value);
+                                    set_parse_error.set(None);
+                                }
+                                Err(error_msg) => {
+                                    if !value.is_empty() {
+                                        set_parse_error.set(Some(error_msg));
+                                    }
+                                }
+                            }
                         }
                     />
-                    <p class="mt-1 text-sm text-gray-500">
-                        {move || {
-                            match event.get().performance_type() {
-                                PerformanceType::Time => "Enter time as seconds (10.50) or formatted time (mm:ss.mmm or hh:mm:ss.mmm)",
-                                PerformanceType::Distance => "Enter distance in meters (e.g., 8.95 for long jump)",
+                    // Error message for parsing errors
+                    <Show
+                        when=move || parse_error.get().is_some()
+                        fallback=move || {
+                            view! {
+                                <p class="mt-1 text-sm text-gray-500">
+                                    {move || {
+                                        match event.get().performance_type() {
+                                            PerformanceType::Time => "Enter time as seconds (10.50) or formatted time (mm:ss.mmm or hh:mm:ss.mmm)",
+                                            PerformanceType::Distance => "Enter distance in meters (e.g., 8.95 for long jump)",
+                                        }
+                                    }}
+                                </p>
                             }
-                        }}
-                    </p>
+                        }
+                    >
+                        <p class="mt-1 text-sm text-red-600 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            {move || parse_error.get().unwrap_or_default()}
+                        </p>
+                    </Show>
                 </div>
             </div>
             <Show
@@ -225,7 +273,13 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                         step="0.1"
                         class="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
                         on:input=move |ev| {
-                            set_wind_speed.set(Some(event_target_value(&ev).parse().unwrap_or(0.0)))
+                            let value = event_target_value(&ev);
+                            let parsed_value = if value.is_empty() {
+                                0.0
+                            } else {
+                                value.parse().unwrap_or(0.0)
+                            };
+                            set_wind_speed.set(Some(parsed_value));
                         }
                     />
                 </div>
@@ -270,7 +324,12 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                                 if value.is_empty() {
                                     set_net_downhill.set(None);
                                 } else {
-                                    set_net_downhill.set(Some(value.parse().unwrap_or(0.0)));
+                                    let parsed_value = if value.is_empty() {
+                                        0.0
+                                    } else {
+                                        value.parse().unwrap_or(0.0)
+                                    };
+                                    set_net_downhill.set(Some(parsed_value));
                                 }
                             }
                         />
@@ -325,6 +384,7 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                         "Place:"
                     </label>
                     <input
+                        placeholder="1"
                         id="place"
                         type="number"
                         class="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
@@ -399,7 +459,14 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
             <div class="mt-8 flex flex-col items-center">
                 <button
                     type="submit"
-                    class="px-8 py-3 bg-gray-900 text-white text-lg font-medium rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm"
+                    class=move || {
+                        if parse_error.get().is_some() {
+                            "px-8 py-3 bg-gray-400 text-white text-lg font-medium rounded-md cursor-not-allowed transition-colors shadow-sm"
+                        } else {
+                            "px-8 py-3 bg-gray-900 text-white text-lg font-medium rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm"
+                        }
+                    }
+                    disabled=move || parse_error.get().is_some()
                 >
                     "Calculate Score"
                 </button>
@@ -422,7 +489,7 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                             </span>
                         </h3>
                         <p class="text-sm text-gray-600 mt-1">
-                            Based on World Athletics scoring tables with adjustments for wind and elevation change
+                            Based on World Athletics scoring tables with adjustments for wind and elevation change. Due to how scores are calculated, you may see a discrepency of +-1 point vs. your official World Athletics score.
                         </p>
                     </div>
                 </Show>

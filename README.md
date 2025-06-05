@@ -4,7 +4,7 @@ A web application for calculating World Athletics performance points based on of
 
 ## Features
 
-- **Flexible Performance Input**: 
+- **Flexible Performance Input**:
   - For time-based events: Enter times in various formats (seconds: `10.50`, minutes:seconds: `1:30.25`, hours:minutes:seconds: `2:15:30.50`)
   - For field events: Enter distances/heights in meters (e.g., `8.95` for long jump)
 - **Wind Adjustments**: Automatic wind speed adjustments for applicable events
@@ -16,7 +16,7 @@ A web application for calculating World Athletics performance points based on of
 
 ### Time-Based Events (Track, Road, Race Walking)
 - **Seconds only**: `10.50`, `9.58`
-- **Minutes:Seconds**: `1:30.25`, `3:45.67` 
+- **Minutes:Seconds**: `1:30.25`, `3:45.67`
 - **Hours:Minutes:Seconds**: `2:15:30.50`, `1:00:00.00`
 
 ### Distance-Based Events (Field Events)
@@ -62,3 +62,9 @@ For further information about hosting Leptos CSR apps, please refer to [the Lept
 [Trunk]: https://github.com/trunk-rs/trunk
 [Trunk-instructions]: https://trunkrs.dev/assets/
 [deploy-csr]: https://book.leptos.dev/deployment/csr.html
+
+
+## TODO
+* Refactor the world_athletics_score_form component
+* Add an upper limit to events in order to avoid crazy scores.
+* Add a lower limit to events in order to avoid negative scores.

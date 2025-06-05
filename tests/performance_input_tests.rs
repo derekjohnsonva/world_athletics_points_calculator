@@ -135,6 +135,54 @@ mod performance_input_integration_tests {
     }
 
     #[test]
+    fn test_performance_parsing_error_handling() {
+        // Test that parsing functions return proper error messages for invalid inputs
+        
+        // Test invalid time formats return descriptive errors
+        let result = Event::parse_time_to_seconds("invalid_time");
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err();
+        assert!(error_msg.contains("Invalid seconds format"));
+
+        let result = Event::parse_time_to_seconds("ab:cd:ef");
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err();
+        assert!(error_msg.contains("Invalid hours") || error_msg.contains("Invalid minutes") || error_msg.contains("Invalid seconds"));
+
+        let result = Event::parse_time_to_seconds("1:2:3:4:5");
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err();
+        assert!(error_msg.contains("Invalid time format"));
+
+        // Test that empty strings return appropriate errors
+        let result = Event::parse_time_to_seconds("");
+        assert!(result.is_err());
+
+        // Test that valid formats still work
+        assert!(Event::parse_time_to_seconds("10.50").is_ok());
+        assert!(Event::parse_time_to_seconds("1:30.25").is_ok());
+        assert!(Event::parse_time_to_seconds("2:15:30.50").is_ok());
+    }
+
+    #[test]
+    fn test_distance_parsing_validation() {
+        // Test that distance parsing would catch invalid formats
+        // This simulates what the UI parsing logic would do
+        
+        let valid_distances = vec!["8.95", "21.50", "75.25", "2.45"];
+        for distance_str in valid_distances {
+            let result: Result<f64, _> = distance_str.parse();
+            assert!(result.is_ok(), "Should parse valid distance: {}", distance_str);
+        }
+
+        let invalid_distances = vec!["invalid", "8.95m", "meters", "", "abc"];
+        for distance_str in invalid_distances {
+            let result: Result<f64, _> = distance_str.parse();
+            assert!(result.is_err(), "Should fail to parse invalid distance: {}", distance_str);
+        }
+    }
+
+    #[test]
     fn test_placement_info_toggle() {
         // Test creating WorldAthleticsScoreInput with placement info
         let event = Event::TrackAndField(TrackAndFieldEvent::M100);
