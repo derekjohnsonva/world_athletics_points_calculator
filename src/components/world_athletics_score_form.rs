@@ -1,3 +1,4 @@
+use crate::models::PerformanceType;
 use crate::models::*;
 use crate::scoring_logic::calculator::{
     calculate_world_athletics_score, is_road_running_event, is_wind_affected_event,
@@ -16,7 +17,8 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
     let (event, set_event) = signal(Event::TrackAndField(
         crate::models::TrackAndFieldEvent::M100,
     ));
-    let (performance, set_performance) = signal(0.0);
+    let (_performance, set_performance) = signal(0.0);
+    let (performance_input, set_performance_input) = signal(String::new());
     let (wind_speed, set_wind_speed) = signal(Some(0.0));
     let (net_downhill, set_net_downhill) = signal(None);
     let (competition_category, set_competition_category) = signal(CompetitionCategory::A);
@@ -24,22 +26,45 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
     let (round, set_round) = signal(RoundType::Final);
     let (size_of_final, set_size_of_final) = signal(8);
     let (qualified_to_final, set_qualified_to_final) = signal(false);
+    let (include_placement, set_include_placement) = signal(true);
     let (points, set_points) = signal(0.0);
     let (points_calculated, set_points_calculated) = signal(false);
     // Submit handler
     let handle_submit = move || {
-        let placement_info = Some(PlacementInfo {
-            competition_category: competition_category.get(),
-            place: place.get(),
-            round: round.get(),
-            size_of_final: size_of_final.get(),
-            qualified_to_final: qualified_to_final.get(),
-        });
+        // Parse performance based on event type
+        let parsed_performance = match event.get().performance_type() {
+            PerformanceType::Time => {
+                // Try to parse as time string first, then as direct seconds
+                match Event::parse_time_to_seconds(&performance_input.get()) {
+                    Ok(seconds) => seconds,
+                    Err(_) => {
+                        // If time parsing fails, try to parse as direct number (seconds)
+                        performance_input.get().parse::<f64>().unwrap_or(0.0)
+                    }
+                }
+            }
+            PerformanceType::Distance => {
+                // For distance events, parse directly as meters
+                performance_input.get().parse::<f64>().unwrap_or(0.0)
+            }
+        };
+
+        let placement_info = if include_placement.get() {
+            Some(PlacementInfo {
+                competition_category: competition_category.get(),
+                place: place.get(),
+                round: round.get(),
+                size_of_final: size_of_final.get(),
+                qualified_to_final: qualified_to_final.get(),
+            })
+        } else {
+            None
+        };
 
         let input = WorldAthleticsScoreInput {
             gender: gender.get(),
             event: event.get(),
-            performance: performance.get(),
+            performance: parsed_performance,
             wind_speed: if is_wind_affected_event(&event.get()) {
                 wind_speed.get()
             } else {
@@ -140,17 +165,51 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                 <label for="performance" class="text-gray-800 font-medium">
-                    "Performance:"
+                    {move || {
+                        match event.get().performance_type() {
+                            PerformanceType::Time => "Performance (Time):",
+                            PerformanceType::Distance => "Performance (Distance):",
+                        }
+                    }}
                 </label>
-                <input
-                    id="performance"
-                    type="number"
-                    step="0.01"
-                    class="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
-                    on:input=move |ev| {
-                        set_performance.set(event_target_value(&ev).parse().unwrap_or(0.0))
-                    }
-                />
+                <div class="md:col-span-2">
+                    <input
+                        id="performance"
+                        type="text"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
+                        placeholder=move || {
+                            match event.get().performance_type() {
+                                PerformanceType::Time => "e.g., 10.50 or 1:30.25 or 2:15:30.50",
+                                PerformanceType::Distance => "e.g., 8.95 (meters)",
+                            }
+                        }
+                        on:input=move |ev| {
+                            let value = event_target_value(&ev);
+                            set_performance_input.set(value.clone());
+
+                            // Also update the numeric performance for backward compatibility
+                            let parsed_value = match event.get().performance_type() {
+                                PerformanceType::Time => {
+                                    Event::parse_time_to_seconds(&value).unwrap_or_else(|_| {
+                                        value.parse::<f64>().unwrap_or(0.0)
+                                    })
+                                }
+                                PerformanceType::Distance => {
+                                    value.parse::<f64>().unwrap_or(0.0)
+                                }
+                            };
+                            set_performance.set(parsed_value);
+                        }
+                    />
+                    <p class="mt-1 text-sm text-gray-500">
+                        {move || {
+                            match event.get().performance_type() {
+                                PerformanceType::Time => "Enter time as seconds (10.50) or formatted time (mm:ss.mmm or hh:mm:ss.mmm)",
+                                PerformanceType::Distance => "Enter distance in meters (e.g., 8.95 for long jump)",
+                            }
+                        }}
+                    </p>
+                </div>
             </div>
             <Show
                 when=move || { is_wind_affected_event(&event.get()) }
@@ -171,7 +230,25 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                     />
                 </div>
             </Show>
-
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <label for="include_placement" class="text-gray-800 font-medium">
+                    "Include Placement Info:"
+                </label>
+                <div class="md:col-span-2 flex items-center">
+                    <input
+                        id="include_placement"
+                        type="checkbox"
+                        checked=move || include_placement.get()
+                        class="h-5 w-5 rounded border-gray-300 text-black focus:ring-black"
+                        on:change=move |ev| {
+                            set_include_placement.set(event_target_checked(&ev))
+                        }
+                    />
+                    <label for="include_placement" class="ml-2 text-sm text-gray-600">
+                        "Calculate points including competition placement and category"
+                    </label>
+                </div>
+            </div>
             <Show
                 when=move || { is_road_running_event(&event.get()) }
                 fallback=|| view! { <div></div> }
@@ -203,10 +280,14 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                     </div>
                 </div>
             </Show>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <label for="competition_category" class="text-gray-800 font-medium">
-                    "Competition Category:"
-                </label>
+            <Show
+                when=move || include_placement.get()
+                fallback=|| view! { <div></div> }
+            >
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    <label for="competition_category" class="text-gray-800 font-medium">
+                        "Competition Category:"
+                    </label>
                 <select
                     id="competition_category"
                     class="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
@@ -237,81 +318,82 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                         })
                         .collect::<Vec<_>>()}
 
-                </select>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <label for="place" class="text-gray-800 font-medium">
-                    "Place:"
-                </label>
-                <input
-                    id="place"
-                    type="number"
-                    class="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
-                    on:input=move |ev| set_place.set(event_target_value(&ev).parse().unwrap_or(1))
-                />
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                <label for="round" class="text-gray-800 font-medium">
-                    "Round:"
-                </label>
-                <select
-                    id="round"
-                    class="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
-                    on:change=move |ev| {
-                        let value = event_target_value(&ev);
-                        set_round
-                            .set(
-                                match value.as_str() {
-                                    "Final" => RoundType::Final,
-                                    "SemiFinal" => RoundType::SemiFinal,
-                                    _ => RoundType::Other,
-                                },
-                            );
-                    }
-                >
-                    <option value="Final" selected=move || round.get() == RoundType::Final>
-                        "Final"
-                    </option>
-                    <option value="SemiFinal" selected=move || round.get() == RoundType::SemiFinal>
-                        "SemiFinal"
-                    </option>
-                    <option value="Other" selected=move || round.get() == RoundType::Other>
-                        "Other"
-                    </option>
-                </select>
-            </div>
-            <Show
-                when=move || { round.get() == RoundType::SemiFinal }
-                fallback=|| view! { <div></div> }
-            >
+                    </select>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                    <label for="size_of_final" class="text-gray-800 font-medium">
-                        "Size of Final:"
+                    <label for="place" class="text-gray-800 font-medium">
+                        "Place:"
                     </label>
                     <input
-                        id="size_of_final"
+                        id="place"
                         type="number"
                         class="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
-                        on:input=move |ev| {
-                            set_size_of_final.set(event_target_value(&ev).parse().unwrap_or(8))
-                        }
+                        on:input=move |ev| set_place.set(event_target_value(&ev).parse().unwrap_or(1))
                     />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                    <label for="qualified_to_final" class="text-gray-800 font-medium">
-                        "Qualified to Final:"
+                    <label for="round" class="text-gray-800 font-medium">
+                        "Round:"
                     </label>
-                    <div class="md:col-span-2 flex items-center">
+                    <select
+                        id="round"
+                        class="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
+                        on:change=move |ev| {
+                            let value = event_target_value(&ev);
+                            set_round
+                                .set(
+                                    match value.as_str() {
+                                        "Final" => RoundType::Final,
+                                        "SemiFinal" => RoundType::SemiFinal,
+                                        _ => RoundType::Other,
+                                    },
+                                );
+                        }
+                    >
+                        <option value="Final" selected=move || round.get() == RoundType::Final>
+                            "Final"
+                        </option>
+                        <option value="SemiFinal" selected=move || round.get() == RoundType::SemiFinal>
+                            "SemiFinal"
+                        </option>
+                        <option value="Other" selected=move || round.get() == RoundType::Other>
+                            "Other"
+                        </option>
+                    </select>
+                </div>
+                <Show
+                    when=move || { round.get() == RoundType::SemiFinal }
+                    fallback=|| view! { <div></div> }
+                >
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                        <label for="size_of_final" class="text-gray-800 font-medium">
+                            "Size of Final:"
+                        </label>
                         <input
-                            id="qualified_to_final"
-                            type="checkbox"
-                            class="h-5 w-5 rounded border-gray-300 text-black focus:ring-black"
-                            on:change=move |ev| {
-                                set_qualified_to_final.set(event_target_checked(&ev))
+                            id="size_of_final"
+                            type="number"
+                            class="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
+                            on:input=move |ev| {
+                                set_size_of_final.set(event_target_value(&ev).parse().unwrap_or(8))
                             }
                         />
                     </div>
-                </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                        <label for="qualified_to_final" class="text-gray-800 font-medium">
+                            "Qualified to Final:"
+                        </label>
+                        <div class="md:col-span-2 flex items-center">
+                            <input
+                                id="qualified_to_final"
+                                type="checkbox"
+                                class="h-5 w-5 rounded border-gray-300 text-black focus:ring-black"
+                                on:change=move |ev| {
+                                    set_qualified_to_final.set(event_target_checked(&ev))
+                                }
+                            />
+                        </div>
+                    </div>
+                </Show>
             </Show>
 
             <div class="mt-8 flex flex-col items-center">
@@ -340,7 +422,7 @@ pub fn WorldAthleticsScoreForm() -> impl IntoView {
                             </span>
                         </h3>
                         <p class="text-sm text-gray-600 mt-1">
-                            Based on World Athletics scoring tables with adjustments for wind and elevation
+                            Based on World Athletics scoring tables with adjustments for wind and elevation change
                         </p>
                     </div>
                 </Show>

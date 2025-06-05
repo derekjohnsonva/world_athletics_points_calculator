@@ -35,7 +35,6 @@ pub enum TrackAndFieldEvent {
     M300H,
     M400H,
     // Steeplechase
-    M1500mSC,
     M2000mSC,
     M3000mSC,
     // Relays
@@ -176,6 +175,24 @@ impl Event {
             .find(|variant| variant.to_string() == s)
     }
 
+    /// Determines whether this event is measured by time or distance
+    pub fn performance_type(&self) -> PerformanceType {
+        match self {
+            // Field events are measured in meters/distance
+            Event::TrackAndField(TrackAndFieldEvent::LJ)
+            | Event::TrackAndField(TrackAndFieldEvent::TJ)
+            | Event::TrackAndField(TrackAndFieldEvent::HJ)
+            | Event::TrackAndField(TrackAndFieldEvent::PV)
+            | Event::TrackAndField(TrackAndFieldEvent::SP)
+            | Event::TrackAndField(TrackAndFieldEvent::DT)
+            | Event::TrackAndField(TrackAndFieldEvent::HT)
+            | Event::TrackAndField(TrackAndFieldEvent::JT) => PerformanceType::Distance,
+
+            // All other events are time-based
+            _ => PerformanceType::Time,
+        }
+    }
+
     pub fn to_placement_score_event_group(&self) -> PlacementScoreEventGroup {
         match self {
             Event::TrackAndField(TrackAndFieldEvent::M5000)
@@ -240,53 +257,52 @@ impl fmt::Display for Event {
                 TrackAndFieldEvent::M3000 => "3000m",
                 TrackAndFieldEvent::M5000 => "5000m",
                 TrackAndFieldEvent::M10000 => "10000m",
-                TrackAndFieldEvent::M50H => "50mH",
-                TrackAndFieldEvent::M55H => "55mH",
-                TrackAndFieldEvent::M60H => "60mH",
-                TrackAndFieldEvent::M100H => "100mH", // Women's 100mH
-                TrackAndFieldEvent::M110H => "110mH", // Men's 110mH
-                TrackAndFieldEvent::M300H => "300mH",
-                TrackAndFieldEvent::M400H => "400mH",
-                TrackAndFieldEvent::M1500mSC => "1500m sh", // Assuming this is short track steeplechase
+                TrackAndFieldEvent::M50H => "50m Hurdle",
+                TrackAndFieldEvent::M55H => "55m Hurdle",
+                TrackAndFieldEvent::M60H => "60m Hurdle",
+                TrackAndFieldEvent::M100H => "100m Hurdle", // Women's 100mH
+                TrackAndFieldEvent::M110H => "110m Hurdle", // Men's 110mH
+                TrackAndFieldEvent::M300H => "300m Hurdle",
+                TrackAndFieldEvent::M400H => "400m Hurdle",
                 TrackAndFieldEvent::M2000mSC => "2000m SC",
                 TrackAndFieldEvent::M3000mSC => "3000m SC",
                 TrackAndFieldEvent::M4x100m => "4x100m",
                 TrackAndFieldEvent::M4x200m => "4x200m",
                 TrackAndFieldEvent::M4x400m => "4x400m",
                 TrackAndFieldEvent::M4x400mix => "4x400mix",
-                TrackAndFieldEvent::LJ => "LJ",
-                TrackAndFieldEvent::TJ => "TJ",
-                TrackAndFieldEvent::HJ => "HJ",
-                TrackAndFieldEvent::PV => "PV",
-                TrackAndFieldEvent::SP => "SP",
-                TrackAndFieldEvent::DT => "DT",
-                TrackAndFieldEvent::HT => "HT",
-                TrackAndFieldEvent::JT => "JT",
-                TrackAndFieldEvent::M50mSh => "50m sh",
-                TrackAndFieldEvent::M55mSh => "55m sh",
-                TrackAndFieldEvent::M60mSh => "60m sh",
-                TrackAndFieldEvent::M200mSh => "200m sh",
-                TrackAndFieldEvent::M300mSh => "300m sh",
-                TrackAndFieldEvent::M400mSh => "400m sh",
-                TrackAndFieldEvent::M500mSh => "500m sh",
-                TrackAndFieldEvent::M600mSh => "600m sh",
-                TrackAndFieldEvent::M800mSh => "800m sh",
-                TrackAndFieldEvent::M1000mSh => "1000m sh",
-                TrackAndFieldEvent::M1500mSh => "1500m sh",
-                TrackAndFieldEvent::M2000mSh => "2000m sh",
-                TrackAndFieldEvent::M3000mSh => "3000m sh",
-                TrackAndFieldEvent::M5000mSh => "5000m sh",
-                TrackAndFieldEvent::MileSh => "Mile sh",
-                TrackAndFieldEvent::M2MilesSh => "2 Miles sh",
-                TrackAndFieldEvent::M4x100mSh => "4x100m sh",
-                TrackAndFieldEvent::M4x200mSh => "4x200m sh",
-                TrackAndFieldEvent::M4x400mSh => "4x400m sh",
-                TrackAndFieldEvent::M4x400mixSh => "4x400mix sh",
+                TrackAndFieldEvent::LJ => "Long Jump",
+                TrackAndFieldEvent::TJ => "Triple Jump",
+                TrackAndFieldEvent::HJ => "High Jump",
+                TrackAndFieldEvent::PV => "Pole Vault",
+                TrackAndFieldEvent::SP => "Shot Put",
+                TrackAndFieldEvent::DT => "Discus Throw",
+                TrackAndFieldEvent::HT => "Hammer Throw",
+                TrackAndFieldEvent::JT => "Javelin Throw",
+                TrackAndFieldEvent::M50mSh => "50m short track",
+                TrackAndFieldEvent::M55mSh => "55m short track",
+                TrackAndFieldEvent::M60mSh => "60m short track",
+                TrackAndFieldEvent::M200mSh => "200m short track",
+                TrackAndFieldEvent::M300mSh => "300m short track",
+                TrackAndFieldEvent::M400mSh => "400m short track",
+                TrackAndFieldEvent::M500mSh => "500m short track",
+                TrackAndFieldEvent::M600mSh => "600m short track",
+                TrackAndFieldEvent::M800mSh => "800m short track",
+                TrackAndFieldEvent::M1000mSh => "1000m short track",
+                TrackAndFieldEvent::M1500mSh => "1500m short track",
+                TrackAndFieldEvent::M2000mSh => "2000m short track",
+                TrackAndFieldEvent::M3000mSh => "3000m short track",
+                TrackAndFieldEvent::M5000mSh => "5000m short track",
+                TrackAndFieldEvent::MileSh => "Mile short track",
+                TrackAndFieldEvent::M2MilesSh => "2 Miles short track",
+                TrackAndFieldEvent::M4x100mSh => "4x100m short track",
+                TrackAndFieldEvent::M4x200mSh => "4x200m short track",
+                TrackAndFieldEvent::M4x400mSh => "4x400m short track",
+                TrackAndFieldEvent::M4x400mixSh => "4x400mix short track",
             },
             Event::CombinedEvents(e) => match e {
                 CombinedEvent::Dec => "Dec.",
-                CombinedEvent::HeptSh => "Hept. sh",
-                CombinedEvent::PentSh => "Pent. sh",
+                CombinedEvent::HeptSh => "Hept. short track",
+                CombinedEvent::PentSh => "Pent. short track",
                 CombinedEvent::Hept => "Hept.",
             },
             Event::RoadRunning(e) => match e {
@@ -302,21 +318,21 @@ impl fmt::Display for Event {
                 RoadRunningEvent::RoadMile => "Road Mile",
             },
             Event::RaceWalking(e) => match e {
-                RaceWalkingEvent::Road5kmW => "Road 5kmW",
-                RaceWalkingEvent::Road10kmW => "Road 10kmW",
-                RaceWalkingEvent::Road15kmW => "Road 15kmW",
-                RaceWalkingEvent::Road20kmW => "Road 20kmW",
-                RaceWalkingEvent::Road30kmW => "Road 30kmW",
-                RaceWalkingEvent::Road35kmW => "Road 35kmW",
-                RaceWalkingEvent::Road50kmW => "Road 50kmW",
-                RaceWalkingEvent::M3000mW => "3000mW",
-                RaceWalkingEvent::M5000mW => "5000mW",
-                RaceWalkingEvent::M10000mW => "10000mW",
-                RaceWalkingEvent::M15000mW => "15,000mW",
-                RaceWalkingEvent::M20000mW => "20,000mW",
-                RaceWalkingEvent::M30000mW => "30,000mW",
-                RaceWalkingEvent::M35000mW => "35,000mW",
-                RaceWalkingEvent::M50000mW => "50,000mW",
+                RaceWalkingEvent::Road5kmW => "Road 5km Walk",
+                RaceWalkingEvent::Road10kmW => "Road 10km Walk",
+                RaceWalkingEvent::Road15kmW => "Road 15km Walk",
+                RaceWalkingEvent::Road20kmW => "Road 20km Walk",
+                RaceWalkingEvent::Road30kmW => "Road 30km Walk",
+                RaceWalkingEvent::Road35kmW => "Road 35km Walk",
+                RaceWalkingEvent::Road50kmW => "Road 50km Walk",
+                RaceWalkingEvent::M3000mW => "3000m Walk",
+                RaceWalkingEvent::M5000mW => "5000m Walk",
+                RaceWalkingEvent::M10000mW => "10000m Walk",
+                RaceWalkingEvent::M15000mW => "15,000m Walk",
+                RaceWalkingEvent::M20000mW => "20,000m Walk",
+                RaceWalkingEvent::M30000mW => "30,000m Walk",
+                RaceWalkingEvent::M35000mW => "35,000m Walk",
+                RaceWalkingEvent::M50000mW => "50,000m Walk",
             },
             Event::CrossCountry(e) => match e {
                 CrossCountryEvent::GenericXC => "GenericXC", // Placeholder for now
@@ -324,6 +340,15 @@ impl fmt::Display for Event {
         };
         write!(f, "{}", s)
     }
+}
+
+/// Enum to represent the type of performance measurement
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PerformanceType {
+    /// Time-based events (running, hurdles, etc.) measured in seconds
+    Time,
+    /// Distance/height-based field events measured in meters
+    Distance,
 }
 
 /// Enum to represent gender for clearer function signatures and data access.
@@ -409,4 +434,136 @@ pub struct WorldAthleticsScoreInput {
     /// For road running events, net elevation drop in m/km (if > 1.0 m/km)
     pub net_downhill: Option<f64>,
     pub placement_info: Option<PlacementInfo>,
+}
+
+/// Utility functions for time parsing and conversion
+impl Event {
+    /// Parse time string in various formats (hh:mm:ss.mmm, mm:ss.mmm, ss.mmm) to seconds
+    pub fn parse_time_to_seconds(time_str: &str) -> Result<f64, String> {
+        let time_str = time_str.trim();
+
+        // Split by colons to determine format
+        let parts: Vec<&str> = time_str.split(':').collect();
+
+        match parts.len() {
+            // Format: ss.mmm or ss
+            1 => parts[0]
+                .parse::<f64>()
+                .map_err(|_| format!("Invalid seconds format: {}", time_str)),
+            // Format: mm:ss.mmm or mm:ss
+            2 => {
+                let minutes = parts[0]
+                    .parse::<f64>()
+                    .map_err(|_| format!("Invalid minutes: {}", parts[0]))?;
+                let seconds = parts[1]
+                    .parse::<f64>()
+                    .map_err(|_| format!("Invalid seconds: {}", parts[1]))?;
+                Ok(minutes * 60.0 + seconds)
+            }
+            // Format: hh:mm:ss.mmm or hh:mm:ss
+            3 => {
+                let hours = parts[0]
+                    .parse::<f64>()
+                    .map_err(|_| format!("Invalid hours: {}", parts[0]))?;
+                let minutes = parts[1]
+                    .parse::<f64>()
+                    .map_err(|_| format!("Invalid minutes: {}", parts[1]))?;
+                let seconds = parts[2]
+                    .parse::<f64>()
+                    .map_err(|_| format!("Invalid seconds: {}", parts[2]))?;
+                Ok(hours * 3600.0 + minutes * 60.0 + seconds)
+            }
+            _ => Err(format!(
+                "Invalid time format: {}. Expected formats: ss.mmm, mm:ss.mmm, or hh:mm:ss.mmm",
+                time_str
+            )),
+        }
+    }
+
+    /// Convert seconds back to time string format (mm:ss.mmm or hh:mm:ss.mmm)
+    pub fn seconds_to_time_string(seconds: f64) -> String {
+        if seconds < 3600.0 {
+            // Less than an hour, use mm:ss.mmm format
+            let minutes = (seconds / 60.0).floor();
+            let remaining_seconds = seconds - (minutes * 60.0);
+            format!("{:02.0}:{:06.3}", minutes, remaining_seconds)
+        } else {
+            // Hour or more, use hh:mm:ss.mmm format
+            let hours = (seconds / 3600.0).floor();
+            let remaining_minutes = ((seconds - (hours * 3600.0)) / 60.0).floor();
+            let remaining_seconds = seconds - (hours * 3600.0) - (remaining_minutes * 60.0);
+            format!(
+                "{:02.0}:{:02.0}:{:06.3}",
+                hours, remaining_minutes, remaining_seconds
+            )
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_time_to_seconds() {
+        // Test seconds only
+        assert!((Event::parse_time_to_seconds("10.50").unwrap() - 10.50).abs() < 0.001);
+        assert!((Event::parse_time_to_seconds("9.58").unwrap() - 9.58).abs() < 0.001);
+
+        // Test mm:ss format
+        assert!((Event::parse_time_to_seconds("1:30.25").unwrap() - 90.25).abs() < 0.001);
+        assert!((Event::parse_time_to_seconds("3:45.67").unwrap() - 225.67).abs() < 0.001);
+
+        // Test hh:mm:ss format
+        assert!((Event::parse_time_to_seconds("2:15:30.50").unwrap() - 8130.50).abs() < 0.001);
+        assert!((Event::parse_time_to_seconds("1:00:00.00").unwrap() - 3600.00).abs() < 0.001);
+
+        // Test error cases
+        assert!(Event::parse_time_to_seconds("invalid").is_err());
+        assert!(Event::parse_time_to_seconds("1:2:3:4").is_err());
+        assert!(Event::parse_time_to_seconds("").is_err());
+    }
+
+    #[test]
+    fn test_seconds_to_time_string() {
+        // Test less than an hour
+        assert_eq!(Event::seconds_to_time_string(10.50), "00:10.500");
+        assert_eq!(Event::seconds_to_time_string(90.25), "01:30.250");
+        assert_eq!(Event::seconds_to_time_string(225.67), "03:45.670");
+
+        // Test an hour or more
+        assert_eq!(Event::seconds_to_time_string(3600.0), "01:00:00.000");
+        assert_eq!(Event::seconds_to_time_string(8130.50), "02:15:30.500");
+    }
+
+    #[test]
+    fn test_performance_type() {
+        // Test field events return Distance
+        assert_eq!(
+            Event::TrackAndField(TrackAndFieldEvent::LJ).performance_type(),
+            PerformanceType::Distance
+        );
+        assert_eq!(
+            Event::TrackAndField(TrackAndFieldEvent::SP).performance_type(),
+            PerformanceType::Distance
+        );
+        assert_eq!(
+            Event::TrackAndField(TrackAndFieldEvent::HJ).performance_type(),
+            PerformanceType::Distance
+        );
+
+        // Test track events return Time
+        assert_eq!(
+            Event::TrackAndField(TrackAndFieldEvent::M100).performance_type(),
+            PerformanceType::Time
+        );
+        assert_eq!(
+            Event::TrackAndField(TrackAndFieldEvent::M400H).performance_type(),
+            PerformanceType::Time
+        );
+        assert_eq!(
+            Event::RoadRunning(RoadRunningEvent::RoadMarathon).performance_type(),
+            PerformanceType::Time
+        );
+    }
 }

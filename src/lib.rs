@@ -4,7 +4,7 @@ use leptos_router::{components::*, path};
 
 // Modules
 mod components;
-mod models;
+pub mod models;
 mod pages;
 pub mod scoring_logic;
 

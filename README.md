@@ -1,5 +1,27 @@
 # World Athletics Points Calculator
 
+A web application for calculating World Athletics performance points based on official scoring tables. The calculator supports both time-based events (track, road running, race walking) and distance-based field events.
+
+## Features
+
+- **Flexible Performance Input**: 
+  - For time-based events: Enter times in various formats (seconds: `10.50`, minutes:seconds: `1:30.25`, hours:minutes:seconds: `2:15:30.50`)
+  - For field events: Enter distances/heights in meters (e.g., `8.95` for long jump)
+- **Wind Adjustments**: Automatic wind speed adjustments for applicable events
+- **Elevation Adjustments**: Net downhill adjustments for road running events
+- **Placement Scoring**: Calculate points based on competition placement and category
+- **Comprehensive Event Support**: Track & field, combined events, road running, race walking, and cross country
+
+## Performance Input Formats
+
+### Time-Based Events (Track, Road, Race Walking)
+- **Seconds only**: `10.50`, `9.58`
+- **Minutes:Seconds**: `1:30.25`, `3:45.67` 
+- **Hours:Minutes:Seconds**: `2:15:30.50`, `1:00:00.00`
+
+### Distance-Based Events (Field Events)
+- **Meters**: `8.95` (long jump), `2.30` (high jump), `20.50` (shot put)
+
 ## Pre-Requisites
 
 You can add the `wasm` compilation target to rust using
