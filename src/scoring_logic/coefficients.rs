@@ -97,6 +97,17 @@ impl CoefficientsTable {
     }
 }
 
+pub fn calculate_result_score(
+    result: f64,
+    gender: Gender,
+    event_name: &str,
+) -> Result<f64, String> {
+    let coefficients = COEFFICIENTS
+        .get()
+        .ok_or_else(|| "Coefficients not loaded. Call load_coefficients() first.".to_string())?;
+    coefficients.calculate_result_score(result, gender, event_name)
+}
+
 // Global static for holding the loaded coefficients.
 // Using OnceCell ensures it's initialized only once, safely.
 static COEFFICIENTS: OnceCell<CoefficientsTable> = OnceCell::new();
@@ -126,7 +137,7 @@ mod tests {
         "men": {
             "100m": [24.642211664166098, -837.7135408530303, 7119.3125116789015],
             "LJ": [1.931092872960562, 186.73134733641928, -479.70640445759636],
-            "5000m": [0.002777997945427213,  -8.000608112196687,5760.418712362531] 
+            "5000m": [0.002777997945427213,  -8.000608112196687,5760.418712362531]
         },
         "women": {
             "100m": [9.927426450685289, -436.6751262119069, 4802.020943877404],

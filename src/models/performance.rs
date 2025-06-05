@@ -1,15 +1,18 @@
-use serde::{Deserialize, Serialize};
-
 use crate::scoring_logic::placement_score::{PlacementScoreEventGroup, RoundType};
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 // src/models/performance.rs
 /// Represents events typically categorized under Track & Field.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, Default)]
 pub enum TrackAndFieldEvent {
     // Sprints/Middle Distance/Long Distance
     M50,
     M55,
     M60,
+    #[default]
     M100,
     M200,
     M300,
@@ -73,16 +76,17 @@ pub enum TrackAndFieldEvent {
 }
 
 /// Represents Combined Events.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, Default)]
 pub enum CombinedEvent {
-    Dec,     // Decathlon
+    #[default]
+    Dec, // Decathlon
     Hept,    // Heptathlon
     Hept_sh, // Heptathlon (short track/indoor component)
     Pent_sh, // Pentathlon (short track/indoor component)
 }
 
 /// Represents Road Running Events.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, Default)]
 pub enum RoadRunningEvent {
     Road5km,
     Road10km,
@@ -91,19 +95,21 @@ pub enum RoadRunningEvent {
     Road25km,
     Road30km,
     RoadHM,
+    #[default]
     RoadMarathon,
     Road10Miles,
     RoadMile,
 }
 
 /// Represents Race Walking Events.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, Default)]
 pub enum RaceWalkingEvent {
     Road5kmW,
     Road10kmW,
     Road15kmW,
     Road20kmW,
     Road30kmW,
+    #[default]
     Road35kmW,
     Road50kmW,
     M3000mW,
@@ -117,10 +123,11 @@ pub enum RaceWalkingEvent {
 }
 
 /// Represents Cross Country Events.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, Default)]
 pub enum CrossCountryEvent {
     // Add specific Cross Country event variants here as needed.
     // For now, leaving it empty as no specific XC events were in the provided JSON.
+    #[default]
     GenericXC, // Placeholder
 }
 
@@ -135,7 +142,40 @@ pub enum Event {
     CrossCountry(CrossCountryEvent),
 }
 
+impl Default for Event {
+    fn default() -> Self {
+        Event::TrackAndField(TrackAndFieldEvent::M100)
+    }
+}
+
 impl Event {
+    pub fn all_variants() -> Vec<Event> {
+        let mut events = Vec::new();
+        for track_and_field_event in TrackAndFieldEvent::iter() {
+            events.push(Event::TrackAndField(track_and_field_event));
+        }
+        for combined_event in CombinedEvent::iter() {
+            events.push(Event::CombinedEvents(combined_event));
+        }
+        for road_running_event in RoadRunningEvent::iter() {
+            events.push(Event::RoadRunning(road_running_event));
+        }
+        for race_walking_event in RaceWalkingEvent::iter() {
+            events.push(Event::RaceWalking(race_walking_event));
+        }
+        for cross_country_event in CrossCountryEvent::iter() {
+            events.push(Event::CrossCountry(cross_country_event));
+        }
+        events
+    }
+
+    // Convert from string back to enum (for form handling)
+    pub fn from_string(s: &str) -> Option<Event> {
+        Event::all_variants()
+            .into_iter()
+            .find(|variant| variant.to_string() == s)
+    }
+
     pub fn to_placement_score_event_group(&self) -> PlacementScoreEventGroup {
         match self {
             Event::TrackAndField(TrackAndFieldEvent::M5000)
@@ -150,19 +190,19 @@ impl Event {
             Event::RoadRunning(RoadRunningEvent::RoadMarathon) => {
                 PlacementScoreEventGroup::RoadMarathon
             }
-            Event::RoadRunning(RoadRunningEvent::RoadHM) // TODO: Determine what to do when the half marathon is the Main Event 
+            Event::RoadRunning(RoadRunningEvent::RoadHM) // TODO: Determine what to do when the half marathon is the Main Event
             | Event::RoadRunning(RoadRunningEvent::Road30km)
             | Event::RoadRunning(RoadRunningEvent::Road25km) => {
                 PlacementScoreEventGroup::HalfMarathon
             }
-            Event::RaceWalking(RaceWalkingEvent::M20000mW) 
-            | Event::RaceWalking(RaceWalkingEvent::Road20kmW) 
-            | Event::RaceWalking(RaceWalkingEvent::Road5kmW) 
-            | Event::RaceWalking(RaceWalkingEvent::Road10kmW) 
-            | Event::RaceWalking(RaceWalkingEvent::Road15kmW) 
-            | Event::RaceWalking(RaceWalkingEvent::M3000mW) 
-            | Event::RaceWalking(RaceWalkingEvent::M5000mW) 
-            | Event::RaceWalking(RaceWalkingEvent::M10000mW) 
+            Event::RaceWalking(RaceWalkingEvent::M20000mW)
+            | Event::RaceWalking(RaceWalkingEvent::Road20kmW)
+            | Event::RaceWalking(RaceWalkingEvent::Road5kmW)
+            | Event::RaceWalking(RaceWalkingEvent::Road10kmW)
+            | Event::RaceWalking(RaceWalkingEvent::Road15kmW)
+            | Event::RaceWalking(RaceWalkingEvent::M3000mW)
+            | Event::RaceWalking(RaceWalkingEvent::M5000mW)
+            | Event::RaceWalking(RaceWalkingEvent::M10000mW)
             | Event::RaceWalking(RaceWalkingEvent::M15000mW) => {
                 PlacementScoreEventGroup::RaceWalking20Km
             },
@@ -178,110 +218,111 @@ impl Event {
     }
 }
 
-impl ToString for Event {
+impl fmt::Display for Event {
     /// Converts the Event enum variant into its string representation
     /// which matches the keys in your JSON constants table.
-    fn to_string(&self) -> String {
-        match self {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
             Event::TrackAndField(e) => match e {
-                TrackAndFieldEvent::M50 => "50m".to_string(),
-                TrackAndFieldEvent::M55 => "55m".to_string(),
-                TrackAndFieldEvent::M60 => "60m".to_string(),
-                TrackAndFieldEvent::M100 => "100m".to_string(),
-                TrackAndFieldEvent::M200 => "200m".to_string(),
-                TrackAndFieldEvent::M300 => "300m".to_string(),
-                TrackAndFieldEvent::M400 => "400m".to_string(),
-                TrackAndFieldEvent::M500 => "500m".to_string(),
-                TrackAndFieldEvent::M600 => "600m".to_string(),
-                TrackAndFieldEvent::M800 => "800m".to_string(),
-                TrackAndFieldEvent::M1000 => "1000m".to_string(),
-                TrackAndFieldEvent::M1500 => "1500m".to_string(),
-                TrackAndFieldEvent::M2000 => "2000m".to_string(),
-                TrackAndFieldEvent::M3000 => "3000m".to_string(),
-                TrackAndFieldEvent::M5000 => "5000m".to_string(),
-                TrackAndFieldEvent::M10000 => "10000m".to_string(),
-                TrackAndFieldEvent::M50H => "50mH".to_string(),
-                TrackAndFieldEvent::M55H => "55mH".to_string(),
-                TrackAndFieldEvent::M60H => "60mH".to_string(),
-                TrackAndFieldEvent::M100H => "100mH".to_string(), // Women's 100mH
-                TrackAndFieldEvent::M110H => "110mH".to_string(), // Men's 110mH
-                TrackAndFieldEvent::M300H => "300mH".to_string(),
-                TrackAndFieldEvent::M400H => "400mH".to_string(),
-                TrackAndFieldEvent::M1500mSC => "1500m sh".to_string(), // Assuming this is short track steeplechase
-                TrackAndFieldEvent::M2000mSC => "2000m SC".to_string(),
-                TrackAndFieldEvent::M3000mSC => "3000m SC".to_string(),
-                TrackAndFieldEvent::M4x100m => "4x100m".to_string(),
-                TrackAndFieldEvent::M4x200m => "4x200m".to_string(),
-                TrackAndFieldEvent::M4x400m => "4x400m".to_string(),
-                TrackAndFieldEvent::M4x400mix => "4x400mix".to_string(),
-                TrackAndFieldEvent::LJ => "LJ".to_string(),
-                TrackAndFieldEvent::TJ => "TJ".to_string(),
-                TrackAndFieldEvent::HJ => "HJ".to_string(),
-                TrackAndFieldEvent::PV => "PV".to_string(),
-                TrackAndFieldEvent::SP => "SP".to_string(),
-                TrackAndFieldEvent::DT => "DT".to_string(),
-                TrackAndFieldEvent::HT => "HT".to_string(),
-                TrackAndFieldEvent::JT => "JT".to_string(),
-                TrackAndFieldEvent::M50m_sh => "50m sh".to_string(),
-                TrackAndFieldEvent::M55m_sh => "55m sh".to_string(),
-                TrackAndFieldEvent::M60m_sh => "60m sh".to_string(),
-                TrackAndFieldEvent::M200m_sh => "200m sh".to_string(),
-                TrackAndFieldEvent::M300m_sh => "300m sh".to_string(),
-                TrackAndFieldEvent::M400m_sh => "400m sh".to_string(),
-                TrackAndFieldEvent::M500m_sh => "500m sh".to_string(),
-                TrackAndFieldEvent::M600m_sh => "600m sh".to_string(),
-                TrackAndFieldEvent::M800m_sh => "800m sh".to_string(),
-                TrackAndFieldEvent::M1000m_sh => "1000m sh".to_string(),
-                TrackAndFieldEvent::M1500m_sh => "1500m sh".to_string(),
-                TrackAndFieldEvent::M2000m_sh => "2000m sh".to_string(),
-                TrackAndFieldEvent::M3000m_sh => "3000m sh".to_string(),
-                TrackAndFieldEvent::M5000m_sh => "5000m sh".to_string(),
-                TrackAndFieldEvent::Mile_sh => "Mile sh".to_string(),
-                TrackAndFieldEvent::M2Miles_sh => "2 Miles sh".to_string(),
-                TrackAndFieldEvent::M4x100m_sh => "4x100m sh".to_string(),
-                TrackAndFieldEvent::M4x200m_sh => "4x200m sh".to_string(),
-                TrackAndFieldEvent::M4x400m_sh => "4x400m sh".to_string(),
-                TrackAndFieldEvent::M4x400mix_sh => "4x400mix sh".to_string(),
+                TrackAndFieldEvent::M50 => "50m",
+                TrackAndFieldEvent::M55 => "55m",
+                TrackAndFieldEvent::M60 => "60m",
+                TrackAndFieldEvent::M100 => "100m",
+                TrackAndFieldEvent::M200 => "200m",
+                TrackAndFieldEvent::M300 => "300m",
+                TrackAndFieldEvent::M400 => "400m",
+                TrackAndFieldEvent::M500 => "500m",
+                TrackAndFieldEvent::M600 => "600m",
+                TrackAndFieldEvent::M800 => "800m",
+                TrackAndFieldEvent::M1000 => "1000m",
+                TrackAndFieldEvent::M1500 => "1500m",
+                TrackAndFieldEvent::M2000 => "2000m",
+                TrackAndFieldEvent::M3000 => "3000m",
+                TrackAndFieldEvent::M5000 => "5000m",
+                TrackAndFieldEvent::M10000 => "10000m",
+                TrackAndFieldEvent::M50H => "50mH",
+                TrackAndFieldEvent::M55H => "55mH",
+                TrackAndFieldEvent::M60H => "60mH",
+                TrackAndFieldEvent::M100H => "100mH", // Women's 100mH
+                TrackAndFieldEvent::M110H => "110mH", // Men's 110mH
+                TrackAndFieldEvent::M300H => "300mH",
+                TrackAndFieldEvent::M400H => "400mH",
+                TrackAndFieldEvent::M1500mSC => "1500m sh", // Assuming this is short track steeplechase
+                TrackAndFieldEvent::M2000mSC => "2000m SC",
+                TrackAndFieldEvent::M3000mSC => "3000m SC",
+                TrackAndFieldEvent::M4x100m => "4x100m",
+                TrackAndFieldEvent::M4x200m => "4x200m",
+                TrackAndFieldEvent::M4x400m => "4x400m",
+                TrackAndFieldEvent::M4x400mix => "4x400mix",
+                TrackAndFieldEvent::LJ => "LJ",
+                TrackAndFieldEvent::TJ => "TJ",
+                TrackAndFieldEvent::HJ => "HJ",
+                TrackAndFieldEvent::PV => "PV",
+                TrackAndFieldEvent::SP => "SP",
+                TrackAndFieldEvent::DT => "DT",
+                TrackAndFieldEvent::HT => "HT",
+                TrackAndFieldEvent::JT => "JT",
+                TrackAndFieldEvent::M50m_sh => "50m sh",
+                TrackAndFieldEvent::M55m_sh => "55m sh",
+                TrackAndFieldEvent::M60m_sh => "60m sh",
+                TrackAndFieldEvent::M200m_sh => "200m sh",
+                TrackAndFieldEvent::M300m_sh => "300m sh",
+                TrackAndFieldEvent::M400m_sh => "400m sh",
+                TrackAndFieldEvent::M500m_sh => "500m sh",
+                TrackAndFieldEvent::M600m_sh => "600m sh",
+                TrackAndFieldEvent::M800m_sh => "800m sh",
+                TrackAndFieldEvent::M1000m_sh => "1000m sh",
+                TrackAndFieldEvent::M1500m_sh => "1500m sh",
+                TrackAndFieldEvent::M2000m_sh => "2000m sh",
+                TrackAndFieldEvent::M3000m_sh => "3000m sh",
+                TrackAndFieldEvent::M5000m_sh => "5000m sh",
+                TrackAndFieldEvent::Mile_sh => "Mile sh",
+                TrackAndFieldEvent::M2Miles_sh => "2 Miles sh",
+                TrackAndFieldEvent::M4x100m_sh => "4x100m sh",
+                TrackAndFieldEvent::M4x200m_sh => "4x200m sh",
+                TrackAndFieldEvent::M4x400m_sh => "4x400m sh",
+                TrackAndFieldEvent::M4x400mix_sh => "4x400mix sh",
             },
             Event::CombinedEvents(e) => match e {
-                CombinedEvent::Dec => "Dec.".to_string(),
-                CombinedEvent::Hept_sh => "Hept. sh".to_string(),
-                CombinedEvent::Pent_sh => "Pent. sh".to_string(),
-                CombinedEvent::Hept => "Hept.".to_string(),
+                CombinedEvent::Dec => "Dec.",
+                CombinedEvent::Hept_sh => "Hept. sh",
+                CombinedEvent::Pent_sh => "Pent. sh",
+                CombinedEvent::Hept => "Hept.",
             },
             Event::RoadRunning(e) => match e {
-                RoadRunningEvent::Road5km => "Road 5 km".to_string(),
-                RoadRunningEvent::Road10km => "Road 10 km".to_string(),
-                RoadRunningEvent::Road15km => "Road 15 km".to_string(),
-                RoadRunningEvent::Road20km => "Road 20 km".to_string(),
-                RoadRunningEvent::Road25km => "Road 25 km".to_string(),
-                RoadRunningEvent::Road30km => "Road 30 km".to_string(),
-                RoadRunningEvent::RoadHM => "Road HM".to_string(),
-                RoadRunningEvent::RoadMarathon => "Road Marathon".to_string(),
-                RoadRunningEvent::Road10Miles => "Road 10 Miles".to_string(),
-                RoadRunningEvent::RoadMile => "Road Mile".to_string(),
+                RoadRunningEvent::Road5km => "Road 5 km",
+                RoadRunningEvent::Road10km => "Road 10 km",
+                RoadRunningEvent::Road15km => "Road 15 km",
+                RoadRunningEvent::Road20km => "Road 20 km",
+                RoadRunningEvent::Road25km => "Road 25 km",
+                RoadRunningEvent::Road30km => "Road 30 km",
+                RoadRunningEvent::RoadHM => "Road HM",
+                RoadRunningEvent::RoadMarathon => "Road Marathon",
+                RoadRunningEvent::Road10Miles => "Road 10 Miles",
+                RoadRunningEvent::RoadMile => "Road Mile",
             },
             Event::RaceWalking(e) => match e {
-                RaceWalkingEvent::Road5kmW => "Road 5kmW".to_string(),
-                RaceWalkingEvent::Road10kmW => "Road 10kmW".to_string(),
-                RaceWalkingEvent::Road15kmW => "Road 15kmW".to_string(),
-                RaceWalkingEvent::Road20kmW => "Road 20kmW".to_string(),
-                RaceWalkingEvent::Road30kmW => "Road 30kmW".to_string(),
-                RaceWalkingEvent::Road35kmW => "Road 35kmW".to_string(),
-                RaceWalkingEvent::Road50kmW => "Road 50kmW".to_string(),
-                RaceWalkingEvent::M3000mW => "3000mW".to_string(),
-                RaceWalkingEvent::M5000mW => "5000mW".to_string(),
-                RaceWalkingEvent::M10000mW => "10000mW".to_string(),
-                RaceWalkingEvent::M15000mW => "15,000mW".to_string(),
-                RaceWalkingEvent::M20000mW => "20,000mW".to_string(),
-                RaceWalkingEvent::M30000mW => "30,000mW".to_string(),
-                RaceWalkingEvent::M35000mW => "35,000mW".to_string(),
-                RaceWalkingEvent::M50000mW => "50,000mW".to_string(),
+                RaceWalkingEvent::Road5kmW => "Road 5kmW",
+                RaceWalkingEvent::Road10kmW => "Road 10kmW",
+                RaceWalkingEvent::Road15kmW => "Road 15kmW",
+                RaceWalkingEvent::Road20kmW => "Road 20kmW",
+                RaceWalkingEvent::Road30kmW => "Road 30kmW",
+                RaceWalkingEvent::Road35kmW => "Road 35kmW",
+                RaceWalkingEvent::Road50kmW => "Road 50kmW",
+                RaceWalkingEvent::M3000mW => "3000mW",
+                RaceWalkingEvent::M5000mW => "5000mW",
+                RaceWalkingEvent::M10000mW => "10000mW",
+                RaceWalkingEvent::M15000mW => "15,000mW",
+                RaceWalkingEvent::M20000mW => "20,000mW",
+                RaceWalkingEvent::M30000mW => "30,000mW",
+                RaceWalkingEvent::M35000mW => "35,000mW",
+                RaceWalkingEvent::M50000mW => "50,000mW",
             },
             Event::CrossCountry(e) => match e {
-                CrossCountryEvent::GenericXC => "GenericXC".to_string(), // Placeholder for now
+                CrossCountryEvent::GenericXC => "GenericXC", // Placeholder for now
             },
-        }
+        };
+        write!(f, "{}", s)
     }
 }
 
@@ -292,16 +333,17 @@ pub enum Gender {
     Women,
 }
 
-impl ToString for Gender {
-    fn to_string(&self) -> String {
+impl fmt::Display for Gender {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Gender::Men => "men".to_string(),
-            Gender::Women => "women".to_string(),
+            Gender::Men => write!(f, "men"),
+            Gender::Women => write!(f, "women"),
         }
     }
 }
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default, EnumIter)]
 pub enum CompetitionCategory {
+    #[default]
     /// Other competitions
     F,
     /// International Matches
@@ -324,6 +366,29 @@ pub enum CompetitionCategory {
     OW,
 }
 
+impl CompetitionCategory {
+    pub fn from_string(s: &str) -> Option<CompetitionCategory> {
+        CompetitionCategory::iter().find(|variant| variant.to_string() == s)
+    }
+}
+
+impl fmt::Display for CompetitionCategory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CompetitionCategory::F => write!(f, "F"),
+            CompetitionCategory::E => write!(f, "E"),
+            CompetitionCategory::D => write!(f, "D"),
+            CompetitionCategory::C => write!(f, "C"),
+            CompetitionCategory::B => write!(f, "B"),
+            CompetitionCategory::A => write!(f, "A"),
+            CompetitionCategory::GL => write!(f, "GL"),
+            CompetitionCategory::GW => write!(f, "GW"),
+            CompetitionCategory::DF => write!(f, "DF"),
+            CompetitionCategory::OW => write!(f, "OW"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PlacementInfo {
     pub competition_category: CompetitionCategory,
@@ -341,5 +406,7 @@ pub struct WorldAthleticsScoreInput {
     pub performance: f64,
     /// For events affected by wind (e.g., sprints, jumps)
     pub wind_speed: Option<f64>,
+    /// For road running events, net elevation drop in m/km (if > 1.0 m/km)
+    pub net_downhill: Option<f64>,
     pub placement_info: Option<PlacementInfo>,
 }

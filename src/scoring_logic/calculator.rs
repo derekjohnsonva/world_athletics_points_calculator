@@ -4,11 +4,16 @@ use crate::scoring_logic::coefficients::Coefficients;
 
 use super::placement_score::PlacementScoreCalcInput;
 
+/// Determines if an event is a road running event
+pub fn is_road_running_event(event: &Event) -> bool {
+    matches!(event, Event::RoadRunning(_))
+}
+
 /// Determines if an event is affected by wind for scoring modifications.
 /// The wind modification applies in the following events:
 /// 100m, 200m, 100m Hurdles, 110mHurdles, Long Jump, Triple Jump
 
-fn is_wind_affected_event(event: &Event) -> bool {
+pub fn is_wind_affected_event(event: &Event) -> bool {
     matches!(
         event,
         Event::TrackAndField(TrackAndFieldEvent::M100)
@@ -65,6 +70,41 @@ pub(crate) fn calculate_wind_adjustment(wind_speed: Option<f64>) -> f64 {
     }
 }
 
+/// Calculates the downhill adjustment points based on net elevation drop for road running events.
+///
+/// Rules:
+/// - No deduction if the net drop is within the allowed 1 m/km.
+/// - A net drop of 1 m/km of the race distance is equivalent to 6 points deduction.
+/// - For each additional 0.1 m/km drop, an additional 0.6 points are deducted.
+///
+/// # Arguments
+/// * `net_downhill` - An `Option<f64>` representing the net elevation drop in m/km.
+///
+/// # Returns
+/// The points to be deducted due to downhill course.
+pub(crate) fn calculate_downhill_adjustment(net_downhill: Option<f64>) -> f64 {
+    const POINTS_PER_M_KM: f64 = 6.0;
+    const POINTS_PER_0_1_M_KM: f64 = 0.6;
+    const THRESHOLD: f64 = 1.0; // No deduction below 1 m/km
+
+    match net_downhill {
+        Some(drop) => {
+            if drop <= THRESHOLD {
+                // No deduction for drops within allowed limit
+                0.0
+            } else {
+                // Calculate excess drop above threshold
+                let excess = drop - THRESHOLD;
+                // Convert to 0.1 m/km units and calculate deduction
+                let deduction_base = POINTS_PER_M_KM; // 6 points for the first 1 m/km over threshold
+                let deduction_additional = (excess * 10.0) * POINTS_PER_0_1_M_KM; // 0.6 points per 0.1 m/km
+                -(deduction_base + deduction_additional)
+            }
+        },
+        None => 0.0, // No adjustment if no drop specified
+    }
+}
+
 /// Calculates the World Athletics Score for a given performance.
 ///
 /// This function retrieves the appropriate coefficients based on gender and event,
@@ -90,11 +130,18 @@ pub fn calculate_world_athletics_score(
 
     // The input.performance is assumed to be already in the standard unit (f64)
     let mut result_score = result_score_calculator(input.performance, gender, &event_id)?;
+    
     // Modify result score due to wind for some track events
     // The wind modification applies in the following events:
     if is_wind_affected_event(&input.event) {
         result_score += calculate_wind_adjustment(input.wind_speed);
     }
+    
+    // Apply downhill adjustment for road running events
+    if is_road_running_event(&input.event) {
+        result_score += calculate_downhill_adjustment(input.net_downhill);
+    }
+    
     let mut placing_score = 0;
 
     if let Some(placement_info) = input.placement_info {
@@ -108,6 +155,11 @@ pub fn calculate_world_athletics_score(
         })
         .unwrap_or(0);
     }
+    log::debug!(
+        "result score = {} and placement score = {}",
+        result_score,
+        placing_score
+    );
     let points = result_score + (placing_score as f64);
 
     Ok(points)
@@ -176,6 +228,23 @@ mod tests {
         // Test case for No Wind Information (NWI)
         assert_eq!(calculate_wind_adjustment(None), -30.0);
     }
+    
+    /// Tests the `calculate_downhill_adjustment` helper function.
+    #[test]
+    fn test_calculate_downhill_adjustment() {
+        // Test cases for downhill courses
+        assert_eq!(calculate_downhill_adjustment(None), 0.0); // No downhill data
+        assert_eq!(calculate_downhill_adjustment(Some(0.0)), 0.0); // Flat course
+        assert_eq!(calculate_downhill_adjustment(Some(0.5)), 0.0); // 0.5 m/km (within allowed)
+        assert_eq!(calculate_downhill_adjustment(Some(1.0)), 0.0); // 1.0 m/km (exactly allowed)
+        
+        // Beyond allowed limit:
+        assert_approx_eq!(calculate_downhill_adjustment(Some(1.1)), -6.6); // 1.1 m/km: -6 - (0.1*10*0.6) = -6.6
+        assert_approx_eq!(calculate_downhill_adjustment(Some(1.2)), -7.2); // 1.2 m/km: -6 - (0.2*10*0.6) = -7.2
+        assert_approx_eq!(calculate_downhill_adjustment(Some(1.5)), -9.0); // 1.5 m/km: -6 - (0.5*10*0.6) = -9.0
+        assert_approx_eq!(calculate_downhill_adjustment(Some(2.0)), -12.0); // 2.0 m/km: -6 - (1*10*0.6) = -12.0
+        assert_approx_eq!(calculate_downhill_adjustment(Some(3.0)), -18.0); // 3.0 m/km: -6 - (2*10*0.6) = -18.0
+    }
 
     /// Tests the end-to-end `calculate_world_athletics_score` function using a mock coefficient fetcher.
     #[test]
@@ -188,6 +257,7 @@ mod tests {
             event: Event::TrackAndField(TrackAndFieldEvent::M100),
             performance: 10.50, // Example: 10.50 seconds
             wind_speed: Some(0.0),
+            net_downhill: None,
             placement_info: None,
         };
         let expected_points1 = 10.50; // 10.50
@@ -205,6 +275,7 @@ mod tests {
             event: Event::TrackAndField(TrackAndFieldEvent::LJ),
             performance: 6.50,     // Example: 6.50 meters
             wind_speed: Some(0.0), // with no wind we will apply a penalty
+            net_downhill: None,
             placement_info: None,
         };
         let expected_points2 = 6.5;
@@ -222,6 +293,7 @@ mod tests {
             event: Event::TrackAndField(TrackAndFieldEvent::M5000),
             performance: 840.0, // 14 minutes (840 seconds)
             wind_speed: None,
+            net_downhill: None,
             placement_info: None,
         };
         let expected_points4 = 840.0;
@@ -239,6 +311,7 @@ mod tests {
             event: Event::RaceWalking(RaceWalkingEvent::Road35kmW),
             performance: 9415.0, // Example: 2:36:55
             wind_speed: None,
+            net_downhill: None,
             placement_info: Some(PlacementInfo {
                 competition_category: CompetitionCategory::A,
                 round: RoundType::Final,
@@ -262,6 +335,7 @@ mod tests {
             event: Event::TrackAndField(TrackAndFieldEvent::LJ),
             performance: 6.50,      // Example: 6.50 meters
             wind_speed: Some(-3.0), // -3.0 m/s headwind
+            net_downhill: None,
             placement_info: None,
         };
         let expected_points6 = 6.50 + 18.0; // 6.50 performance + 18.0 points for headwind adjustment
@@ -272,5 +346,41 @@ mod tests {
         )
         .expect("Calculation failed for women's LJ with headwind");
         assert_eq!(output6, expected_points6);
+        
+        // Test case 7: Road Marathon with a downhill course (1.5 m/km drop)
+        let input7 = WorldAthleticsScoreInput {
+            gender: Gender::Men,
+            event: Event::RoadRunning(RoadRunningEvent::RoadMarathon),
+            performance: 7200.0, // Example: 2:00:00
+            wind_speed: None,
+            net_downhill: Some(1.5), // 1.5 m/km drop (exceeds the 1.0 m/km allowance)
+            placement_info: None,
+        };
+        let expected_points7 = 7200.0 - 9.0; // 7200.0 - 9.0 points for downhill adjustment
+        let output7 = calculate_world_athletics_score(
+            input7,
+            mock_result_score_calculator,
+            mock_placement_score_calculator,
+        )
+        .expect("Calculation failed for men's Road Marathon with downhill course");
+        assert_eq!(output7, expected_points7);
+        
+        // Test case 8: Road 10km with a significant downhill course (2.5 m/km drop)
+        let input8 = WorldAthleticsScoreInput {
+            gender: Gender::Women,
+            event: Event::RoadRunning(RoadRunningEvent::Road10km),
+            performance: 1800.0, // Example: 30:00
+            wind_speed: None,
+            net_downhill: Some(2.5), // 2.5 m/km drop
+            placement_info: None,
+        };
+        let expected_points8 = 1800.0 - 15.0; // 1800.0 - 15.0 points for downhill adjustment
+        let output8 = calculate_world_athletics_score(
+            input8,
+            mock_result_score_calculator,
+            mock_placement_score_calculator,
+        )
+        .expect("Calculation failed for women's Road 10km with downhill course");
+        assert_eq!(output8, expected_points8);
     }
 }

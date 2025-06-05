@@ -50,7 +50,7 @@ pub struct PlacementCalculator {
     data: PlacementScoreData,
 }
 
-static CALCULATOR: OnceLock<PlacementCalculator> = OnceLock::new();
+pub static PLACEMENT_SCORE_CALCULATOR: OnceLock<PlacementCalculator> = OnceLock::new();
 
 pub struct PlacementScoreCalcInput {
     pub event: Event,
@@ -193,7 +193,7 @@ impl PlacementCalculator {
 pub fn init_placement_score_calculator() -> Result<(), Box<dyn std::error::Error>> {
     let json_data = include_str!("../../data/track_and_field_placement_scores.json");
     let calculator = PlacementCalculator::new(json_data)?;
-    CALCULATOR
+    PLACEMENT_SCORE_CALCULATOR
         .set(calculator)
         .map_err(|_| "Calculator already initialized")?;
     Ok(())
@@ -202,7 +202,9 @@ pub fn init_placement_score_calculator() -> Result<(), Box<dyn std::error::Error
 /// Calculate placement score for given parameters
 /// Returns None if no score is available for the given combination
 pub fn calculate_placement_score(input: PlacementScoreCalcInput) -> Option<i32> {
-    CALCULATOR.get()?.calculate_placement_score(input)
+    PLACEMENT_SCORE_CALCULATOR
+        .get()?
+        .calculate_placement_score(input)
 }
 
 #[cfg(test)]
