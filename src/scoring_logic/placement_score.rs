@@ -280,15 +280,15 @@ mod tests {
                     "12": 60
                     }
                 },
-            "distance_5000m_3000mSC_final": {
+            "distance_5000m_3000m_sc_final": {
                 "OW": {
                     "1": 305,
                     "2": 270,
                     "3": 240
                 }
             },
-            "distance_5000m_3000mSC_semi_max9": {},
-            "distance_5000m_3000mSC_semi_10plus": {},
+            "distance_5000m_3000m_sc_semi_max9": {},
+            "distance_5000m_3000m_sc_semi_10plus": {},
             "distance_10000m_final": {
                 "OW": {
                     "1": 280,
