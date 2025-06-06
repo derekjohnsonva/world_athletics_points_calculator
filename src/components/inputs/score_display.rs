@@ -40,7 +40,7 @@ pub fn ScoreDisplay(
                         </span>
                     </h3>
                     <p class="text-sm text-gray-600 mt-1">
-                        Based on World Athletics scoring tables with adjustments for wind and elevation change. Due to how scores are calculated, you may see a discrepency of +-1 point vs. your official World Athletics score.
+                        Based on World Athletics scoring tables with adjustments for wind and elevation change. Due to how scores are calculated, you may see a discrepancy of +-1 point vs. your official World Athletics score.
                     </p>
                 </div>
             </Show>
