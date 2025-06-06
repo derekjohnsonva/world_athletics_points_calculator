@@ -40,6 +40,7 @@ pub fn App() -> impl IntoView {
                 <main class="flex-grow">
                     <Routes fallback=|| view! { NotFound }>
                         <Route path=path!("/") view=Home />
+                        <Route path=path!("/world_athletics_points_calculator") view=Home />
                     </Routes>
                 </main>
 
