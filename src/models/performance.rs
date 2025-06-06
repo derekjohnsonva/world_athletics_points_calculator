@@ -352,7 +352,7 @@ pub enum PerformanceType {
 }
 
 /// Enum to represent gender for clearer function signatures and data access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)] // Added Copy for easier use in arguments
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumIter)] // Added Copy for easier use in arguments
 pub enum Gender {
     Men,
     Women,
