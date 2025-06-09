@@ -79,9 +79,8 @@ impl CoefficientsTable {
     ) -> Result<f64, String> {
         let coefficients = self.get_coefficients(gender, event_name).ok_or_else(|| {
             format!(
-                "Coefficients not found for gender {:?} and event: {}",
-                gender.to_string(),
-                event_name,
+                "Coefficients not found for gender {} and event: {}",
+                gender, event_name,
             )
         })?;
         // points = floor(conversionFactor * (result + resultShift)^2 + pointShift)

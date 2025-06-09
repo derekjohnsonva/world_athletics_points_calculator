@@ -124,11 +124,12 @@ pub fn calculate_world_athletics_score(
     result_score_calculator: fn(f64, Gender, &str) -> Result<f64, String>,
     placement_score_calculator: fn(PlacementScoreCalcInput) -> Option<i32>,
 ) -> Result<f64, String> {
+    log::info!("Calculating score for input: {:?}", input);
+
     let event_id = input.event.to_string(); // e.g., "100m", "TJ"
-    let gender = input.gender;
 
     // The input.performance is assumed to be already in the standard unit (f64)
-    let mut result_score = result_score_calculator(input.performance, gender, &event_id)?;
+    let mut result_score = result_score_calculator(input.performance, input.gender, &event_id)?;
 
     // Modify result score due to wind for some track events
     // The wind modification applies in the following events:

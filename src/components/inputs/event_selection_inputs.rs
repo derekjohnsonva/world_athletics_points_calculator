@@ -19,9 +19,10 @@ pub fn EventSelectionInputs(
                 class="md:col-span-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black"
                 on:change=move |ev| {
                     let value = event_target_value(&ev);
+                    log::info!("Gender selected: {}", value);
                     match value.as_str() {
-                        "Men" => set_gender.set(Gender::Men),
-                        "Women" => set_gender.set(Gender::Women),
+                        "men" => set_gender.set(Gender::Men),
+                        "women" => set_gender.set(Gender::Women),
                         _ => {}
                     }
                 }
