@@ -32,7 +32,7 @@ pub enum TrackAndFieldEvent {
     M60H,
     M100H,
     M110H,
-    M300H,
+    // M300H,
     M400H,
     // Steeplechase
     M2000mSC,
@@ -52,9 +52,9 @@ pub enum TrackAndFieldEvent {
     HT,
     JT,
     // Indoor/Short Track specific events (often denoted by 'sh' in JSON)
-    M50mSh,
-    M55mSh,
-    M60mSh,
+    // M50mSh,
+    // M55mSh,
+    // M60mSh,
     M200mSh,
     M300mSh,
     M400mSh,
@@ -68,7 +68,7 @@ pub enum TrackAndFieldEvent {
     M5000mSh,
     MileSh,
     M2MilesSh, // Mile and 2 Miles on short track
-    M4x100mSh,
+    // M4x100mSh,
     M4x200mSh,
     M4x400mSh,
     M4x400mixSh,
@@ -113,7 +113,7 @@ pub enum RaceWalkingEvent {
     Road50kmW,
     M3000mW,
     M5000mW,
-    M10000mW,
+    // M10000mW,
     M15000mW,
     M20000mW,
     M30000mW,
@@ -219,7 +219,7 @@ impl Event {
             | Event::RaceWalking(RaceWalkingEvent::Road15kmW)
             | Event::RaceWalking(RaceWalkingEvent::M3000mW)
             | Event::RaceWalking(RaceWalkingEvent::M5000mW)
-            | Event::RaceWalking(RaceWalkingEvent::M10000mW)
+            // | Event::RaceWalking(RaceWalkingEvent::M10000mW)
             | Event::RaceWalking(RaceWalkingEvent::M15000mW) => {
                 PlacementScoreEventGroup::RaceWalking20Km
             },
@@ -262,7 +262,7 @@ impl fmt::Display for Event {
                 TrackAndFieldEvent::M60H => "60m Hurdle",
                 TrackAndFieldEvent::M100H => "100m Hurdle", // Women's 100mH
                 TrackAndFieldEvent::M110H => "110m Hurdle", // Men's 110mH
-                TrackAndFieldEvent::M300H => "300m Hurdle",
+                // TrackAndFieldEvent::M300H => "300m Hurdle",
                 TrackAndFieldEvent::M400H => "400m Hurdle",
                 TrackAndFieldEvent::M2000mSC => "2000m SC",
                 TrackAndFieldEvent::M3000mSC => "3000m SC",
@@ -278,9 +278,9 @@ impl fmt::Display for Event {
                 TrackAndFieldEvent::DT => "Discus Throw",
                 TrackAndFieldEvent::HT => "Hammer Throw",
                 TrackAndFieldEvent::JT => "Javelin Throw",
-                TrackAndFieldEvent::M50mSh => "50m short track",
-                TrackAndFieldEvent::M55mSh => "55m short track",
-                TrackAndFieldEvent::M60mSh => "60m short track",
+                // TrackAndFieldEvent::M50mSh => "50m short track",
+                // TrackAndFieldEvent::M55mSh => "55m short track",
+                // TrackAndFieldEvent::M60mSh => "60m short track",
                 TrackAndFieldEvent::M200mSh => "200m short track",
                 TrackAndFieldEvent::M300mSh => "300m short track",
                 TrackAndFieldEvent::M400mSh => "400m short track",
@@ -294,7 +294,7 @@ impl fmt::Display for Event {
                 TrackAndFieldEvent::M5000mSh => "5000m short track",
                 TrackAndFieldEvent::MileSh => "Mile short track",
                 TrackAndFieldEvent::M2MilesSh => "2 Miles short track",
-                TrackAndFieldEvent::M4x100mSh => "4x100m short track",
+                // TrackAndFieldEvent::M4x100mSh => "4x100m short track",
                 TrackAndFieldEvent::M4x200mSh => "4x200m short track",
                 TrackAndFieldEvent::M4x400mSh => "4x400m short track",
                 TrackAndFieldEvent::M4x400mixSh => "4x400mix short track",
@@ -327,7 +327,7 @@ impl fmt::Display for Event {
                 RaceWalkingEvent::Road50kmW => "Road 50km Walk",
                 RaceWalkingEvent::M3000mW => "3000m Walk",
                 RaceWalkingEvent::M5000mW => "5000m Walk",
-                RaceWalkingEvent::M10000mW => "10000m Walk",
+                // RaceWalkingEvent::M10000mW => "10000m Walk",
                 RaceWalkingEvent::M15000mW => "15,000m Walk",
                 RaceWalkingEvent::M20000mW => "20,000m Walk",
                 RaceWalkingEvent::M30000mW => "30,000m Walk",
@@ -503,6 +503,7 @@ impl Event {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::Value;
 
     #[test]
     fn test_parse_time_to_seconds() {
@@ -565,5 +566,63 @@ mod tests {
             Event::RoadRunning(RoadRunningEvent::RoadMarathon).performance_type(),
             PerformanceType::Time
         );
+    }
+
+    #[test]
+    fn test_all_enum_events_must_exist_in_json() {
+        // This test ensures ALL events defined in enums exist in JSON constants
+        let json_content = include_str!("../../data/world_athletics_constants_2025.json");
+        let json_data: Value =
+            serde_json::from_str(json_content).expect("Failed to parse JSON constants file");
+
+        let men_events = json_data["men"]
+            .as_object()
+            .expect("Men's section not found");
+        let women_events = json_data["women"]
+            .as_object()
+            .expect("Women's section not found");
+
+        // Get all enum events and check each one
+        let all_events = Event::all_variants();
+        let mut missing_events = Vec::new();
+
+        for event in all_events {
+            let event_string = event.to_string();
+
+            // Skip cross country events as they might be placeholders
+            if matches!(event, Event::CrossCountry(_)) {
+                continue;
+            }
+
+            // Determine expected gender availability based on event type
+            let should_be_in_men = match event_string.as_str() {
+                "100m Hurdle" | "Hept." | "Pent. short track" => false, // Women only
+                _ => true, // Should be in men's constants
+            };
+
+            let should_be_in_women = match event_string.as_str() {
+                "110m Hurdle" | "Dec." | "Hept. short track" => false, // Men only
+                _ => true, // Should be in women's constants
+            };
+
+            let in_men = men_events.contains_key(&event_string);
+            let in_women = women_events.contains_key(&event_string);
+
+            if should_be_in_men && !in_men {
+                missing_events.push(format!("Missing from men's constants: {}", event_string));
+            }
+            if should_be_in_women && !in_women {
+                missing_events.push(format!("Missing from women's constants: {}", event_string));
+            }
+        }
+
+        // Fail the test if any events are missing
+        if !missing_events.is_empty() {
+            panic!(
+                "The following events are defined in enums but missing from JSON constants:\n{}\n\
+                All enum events must have corresponding entries in world_athletics_constants_2025.json",
+                missing_events.join("\n")
+            );
+        }
     }
 }
