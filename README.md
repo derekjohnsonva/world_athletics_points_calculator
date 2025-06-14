@@ -65,6 +65,6 @@ For further information about hosting Leptos CSR apps, please refer to [the Lept
 
 
 ## TODO
-* Refactor the world_athletics_score_form component
+* Add missing events to the coefficient list (300mH, ...)
 * Add an upper limit to events in order to avoid crazy scores.
 * Add a lower limit to events in order to avoid negative scores.
